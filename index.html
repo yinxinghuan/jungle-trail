@@ -3,10 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Jungle Trail</title>
+<style id="alteru-long-press-guard">html,body,#app,#root,#shell{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}input,textarea,[contenteditable="true"]{-webkit-touch-callout:default;-webkit-user-select:text;user-select:text}img,svg,canvas{-webkit-user-drag:none}</style>
 <style>
   :root { color-scheme: dark; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #05070a; }
+  #shell { position: fixed; inset: 0; min-height: 100dvh; overflow: hidden; background: #05070a; }
+  #sleeping { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; color: #f0f3e9; background: radial-gradient(ellipse at 50% 14%, #263324 0, #101812 38%, #05070a 80%); }
+  #sleeping[hidden] { display: none; }
   /* The canvas is the entire experience — no HUD, nothing that would remind
      you it is a program. What follows dresses the debug overlay, which is not
      in the document at all until F3 asks for it. */
@@ -110,18 +117,79 @@
     .debug-overlay.is-collapsed { width: 148px; }
   }
 </style>
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-  }
-}
-</script>
+<script src="https://images.aiwaves.tech/alteru/guest-shell.js" defer></script>
 </head>
 <body>
-<canvas id="view"></canvas>
-<div id="boot">jungle trail</div>
+<main id="shell">
+  <canvas id="view" aria-label="Jungle Trail first-person exploration"></canvas>
+  <section id="sleeping" aria-labelledby="sleeping-title">
+    <div class="jt-sleeping__canopy" aria-hidden="true"></div>
+    <div class="jt-sleeping__content">
+      <p class="jt-sleeping__eyebrow">A PROCEDURAL EXPEDITION</p>
+      <h1 id="sleeping-title">JUNGLE<br>TRAIL</h1>
+      <p id="sleeping-copy" class="jt-sleeping__copy"></p>
+      <button id="start-button" class="jt-button jt-button--primary" type="button"></button>
+      <p id="build-status" class="jt-sleeping__status" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <div id="hud" class="jt-hud" hidden>
+    <div class="jt-hud__top">
+      <div class="jt-progress" aria-live="polite">
+        <span id="landmark-label" class="jt-progress__label"></span>
+        <div class="jt-progress__track" aria-hidden="true"><i id="progress-fill"></i></div>
+      </div>
+      <div class="jt-hud__actions">
+        <button id="sound-button" class="jt-icon-button" type="button" aria-label="Mute sound"></button>
+        <button id="pause-button" class="jt-icon-button" type="button" aria-label="Pause"></button>
+      </div>
+    </div>
+
+    <div id="look-zone" class="jt-look-zone" aria-hidden="true"></div>
+    <div id="ghost-gesture" class="jt-ghost" hidden aria-hidden="true">
+      <span class="jt-ghost__finger"><svg viewBox="0 0 24 24"><path d="M9 11.24V7.5C9 6.12 10.12 5 11.5 5S14 6.12 14 7.5v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6c0-.83-.67-1.5-1.5-1.5S10 6.67 10 7.5v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.92-1.38z"/></svg></span>
+    </div>
+    <div class="jt-controls">
+      <div id="move-control" class="jt-stick" aria-label="Move joystick" role="application">
+        <span class="jt-stick__ring"></span><i id="stick-knob" class="jt-stick__knob"></i>
+      </div>
+      <div class="jt-controls__actions">
+        <button id="sprint-button" class="jt-action-button" type="button"></button>
+        <button id="jump-button" class="jt-action-button jt-action-button--jump" type="button"></button>
+      </div>
+    </div>
+    <div id="hint" class="jt-hint" aria-live="polite"></div>
+  </div>
+
+  <section id="pause-panel" class="jt-panel" hidden aria-labelledby="pause-title">
+    <div class="jt-panel__content">
+      <p class="jt-panel__eyebrow">JUNGLE TRAIL</p>
+      <h2 id="pause-title"></h2>
+      <button id="resume-button" class="jt-button jt-button--primary" type="button"></button>
+      <button id="trail-button" class="jt-button" type="button"></button>
+    </div>
+  </section>
+
+  <section id="complete-panel" class="jt-complete" hidden aria-labelledby="complete-title">
+    <div class="jt-complete__content">
+      <p class="jt-panel__eyebrow">JOURNEY COMPLETE</p>
+      <h2 id="complete-title"></h2>
+      <p id="complete-time"></p>
+      <div class="jt-complete__actions">
+        <button id="observe-button" class="jt-button jt-button--primary" type="button"></button>
+        <button id="restart-button" class="jt-button" type="button"></button>
+      </div>
+    </div>
+  </section>
+
+  <section id="error-panel" class="jt-panel" hidden aria-labelledby="error-title">
+    <div class="jt-panel__content">
+      <h2 id="error-title"></h2>
+      <p id="error-copy"></p>
+      <button id="retry-button" class="jt-button jt-button--primary" type="button"></button>
+    </div>
+  </section>
+</main>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

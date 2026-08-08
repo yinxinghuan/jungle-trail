@@ -1,4 +1,5 @@
 node_modules/
+dist/
 
 # Tool output: several hundred captures, atlas dumps and offline WAV renders.
 # Over a gigabyte, and all of it reproducible from tools/.

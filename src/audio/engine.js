@@ -65,6 +65,7 @@ export class Ambience {
       || (() => new (globalThis.AudioContext || globalThis.webkitAudioContext)());
 
     this.ready = false;
+    this.muted = false;
     this._unlocking = false;
     this._disposed = false;
     this.fallsBase = { ...FALLS_BASE };
@@ -255,7 +256,7 @@ export class Ambience {
   _buildGraph() {
     const ctx = this.ctx;
     this.master = ctx.createGain();
-    this.master.gain.value = levelGain('master');
+    this.master.gain.value = this.muted ? 0 : levelGain('master');
     /* The compressor is a safety net, not a mix tool: with the score's
      * levels it should never engage except when a close bird call lands on
      * the falls at full crescendo, and then it is the difference between
@@ -574,6 +575,17 @@ export class Ambience {
     if (!this.ready) return;
     if (paused && this.ctx.state === 'running' && this.ctx.suspend) this.ctx.suspend();
     else if (!paused && this.ctx.state === 'suspended' && this.ctx.resume) this.ctx.resume();
+  }
+
+  setMuted(muted) {
+    this.muted = !!muted;
+    if (!this.master || !this.ctx) return;
+    const value = this.muted ? 0 : levelGain('master');
+    if (this.master.gain.setTargetAtTime) {
+      this.master.gain.setTargetAtTime(value, this.ctx.currentTime, 0.025);
+    } else {
+      this.master.gain.value = value;
+    }
   }
 
   stats() {

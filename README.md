@@ -1,5 +1,17 @@
 # Jungle Trail
 
+> AlterU mobile adaptation of **Jungle Trail** by Prasenjit (StarKnightt).
+> Original source: https://github.com/StarKnightt/jungle-trail
+> Original demo: https://starknightt.github.io/jungle-trail/
+> Baseline revision: `753fb347328ce49963d8ae96124d5224f980bf63`
+> License: MIT. This adaptation preserves the original copyright and license.
+
+This branch keeps the upstream procedural world and adds a Vite build, deferred
+WebGL startup, mobile touch controls, portrait composition, lifecycle suspension,
+mobile vegetation/texture tiers, bilingual interface copy, and a self-paced
+waterfall completion state. The upstream author is the creator of the original
+work and is not presented as an AlterU player identity.
+
 A first-person walk down a winding jungle trail into overgrown stone ruins with a
 waterfall, built in Three.js with zero external art assets. Every texture, mesh
 and sound in the scene is generated procedurally in code. There are no image
@@ -7,32 +19,30 @@ files, no models, no audio recordings and no material libraries: the leaf atlas,
 the bark, the ground, the stone, the character's skin and all sixty audio buffers
 are computed at load time.
 
-Live: **https://starknightt.github.io/jungle-trail/**
+Original live demo: **https://starknightt.github.io/jungle-trail/**
 
 ![Trailhead under closed canopy](media/01-trailhead.jpg)
 
 ## Running it locally
 
-There is no build step. The page is plain ES modules with an importmap, so it
-only needs a static file server.
+Install dependencies and start Vite:
 
 ```
-git clone https://github.com/StarKnightt/jungle-trail.git
-cd jungle-trail
-npm run serve
+npm install
+npm run dev
 ```
 
-Then open `http://localhost:8099/`. Any other static server works equally well;
-opening `index.html` from the filesystem does not, because ES modules and workers
-need a real origin.
-
-`npm install` is only needed for the capture tools in `tools/`, which use
-Playwright. The game itself does not need it.
+Create the portable production build with `npm run build`. Vite uses `base: './'`
+so the generated `dist/` works from arbitrary deployment subpaths.
 
 ## Controls
 
 | Input | Action |
 |---|---|
+| Left touch joystick | Move |
+| Drag right side | Look |
+| Hold Sprint | Sprint |
+| Tap Jump | Jump |
 | Click | Lock the pointer |
 | Mouse | Look |
 | W A S D | Move |

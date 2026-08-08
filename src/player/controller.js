@@ -87,6 +87,7 @@ export class Walker {
     this._baseFov = camera.fov;
 
     this.keys = Object.create(null);
+    this.touch = { x: 0, z: 0, jog: false };
     this.enabled = false;
     this.auto = null;          // { t } — scripted walk, used by the capture harness
     this.noise = new Noise2D(4242);
@@ -143,6 +144,9 @@ export class Walker {
      * pointer-lock re-entry rather than a keyboard edge case. */
     const clear = () => {
       for (const code of Object.keys(this.keys)) this.keys[code] = false;
+      this.touch.x = 0;
+      this.touch.z = 0;
+      this.touch.jog = false;
       this._jumpHeld = false;
       this._jumpQueued = false;
     };
@@ -178,6 +182,25 @@ export class Walker {
       dom.removeEventListener('click', click);
       document.removeEventListener('pointerlockchange', lock);
     };
+    return this;
+  }
+
+  /** Set an analogue movement vector in camera-local space. */
+  setMoveInput(x, z) {
+    this.touch.x = clamp(Number(x) || 0, -1, 1);
+    this.touch.z = clamp(Number(z) || 0, -1, 1);
+    return this;
+  }
+
+  setSprinting(active) {
+    this.touch.jog = !!active;
+    return this;
+  }
+
+  /** Apply a touch-look delta measured in CSS pixels. */
+  lookBy(dx, dy, sensitivity = 0.0032) {
+    this.yaw -= (Number(dx) || 0) * sensitivity;
+    this.pitch = clamp(this.pitch - (Number(dy) || 0) * sensitivity, -1.35, 1.35);
     return this;
   }
 
@@ -239,14 +262,17 @@ export class Walker {
     if (k.KeyS || k.ArrowDown) fz += 1;
     if (k.KeyA || k.ArrowLeft) fx -= 1;
     if (k.KeyD || k.ArrowRight) fx += 1;
-    const mag = Math.hypot(fx, fz);
-    if (mag > 0) { fx /= mag; fz /= mag; }
+    fx += this.touch.x;
+    fz += this.touch.z;
+    const rawMag = Math.hypot(fx, fz);
+    const inputStrength = Math.min(1, rawMag);
+    if (rawMag > 0) { fx /= rawMag; fz /= rawMag; }
 
     /* Shift selects a pace, while runBlend below describes the pace the body
      * has actually reached. Keeping those separate prevents an idle Shift key,
      * a steep blocked bank, or a slow backward jog from widening the lens and
      * posing the body as if it were already travelling at full speed. */
-    const wantsJog = mag > 0 && !!(k.ShiftLeft || k.ShiftRight);
+    const wantsJog = inputStrength > 0 && !!(k.ShiftLeft || k.ShiftRight || this.touch.jog);
     this._paceBlend += ((wantsJog ? 1 : 0) - this._paceBlend) * response(3.8, dt);
     const pace = lerp(WALK_SPEED, JOG_SPEED, this._paceBlend);
     /* Rotate the input into world space by the camera's own yaw. With the
@@ -268,11 +294,11 @@ export class Walker {
       ? 1
       : fz > 0
         ? BACKWARD_SCALE
-        : mag > 0 ? STRAFE_SCALE : 0;
+        : inputStrength > 0 ? STRAFE_SCALE : 0;
 
     let grade = 0;
     let slopeFactor = 1;
-    if (this.grounded && mag > 0) {
+    if (this.grounded && inputStrength > 0) {
       const n = this.terrain.normal(this.pos.x, this.pos.z, this._normal);
       grade = -(n.x * wx + n.z * wz) / Math.max(0.1, n.y);
       /* Tiny grade changes are terrain texture, not exertion. Above that dead
@@ -285,14 +311,14 @@ export class Walker {
     this.slopeGrade += (grade - this.slopeGrade) * response(5, dt);
     this.slopeFactor = slopeFactor;
 
-    const target = pace * directionScale * slopeFactor;
+    const target = pace * directionScale * slopeFactor * inputStrength;
     if (this.grounded) {
-      const kResponse = response(mag > 0 ? GROUND_ACCEL : GROUND_BRAKE, dt);
-      const tx = mag > 0 ? wx * target : 0;
-      const tz = mag > 0 ? wz * target : 0;
+      const kResponse = response(inputStrength > 0 ? GROUND_ACCEL : GROUND_BRAKE, dt);
+      const tx = inputStrength > 0 ? wx * target : 0;
+      const tz = inputStrength > 0 ? wz * target : 0;
       this.vel.x += (tx - this.vel.x) * kResponse;
       this.vel.z += (tz - this.vel.z) * kResponse;
-    } else if (mag > 0) {
+    } else if (inputStrength > 0) {
       /* Steering can correct a poor takeoff, but the low response rate makes
        * changing direction in one short hop impossible. */
       const kResponse = response(AIR_STEER, dt);

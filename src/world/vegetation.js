@@ -592,7 +592,8 @@ export class Vegetation {
    *   density every real ruin has along them.
    * @param {import('../player/collision.js').CollisionWorld} [collision]
    */
-  constructor(renderer, terrain, trail, seed = 7717, ruins = null, collision = null) {
+  constructor(renderer, terrain, trail, seed = 7717, ruins = null, collision = null,
+              { densityScale = 1, atlasPx = ATLAS_PX } = {}) {
     this.renderer = renderer;
     this.terrain = terrain;
     this.trail = trail;
@@ -602,6 +603,8 @@ export class Vegetation {
     this.root.name = 'vegetation';
     this.time = 0;
     this.cells = [];
+    this.densityScale = Math.max(0.35, Math.min(1, densityScale));
+    this.atlasPx = Math.max(512, Math.min(ATLAS_PX, atlasPx));
 
     this.uniforms = {
       uTime: { value: 0 },
@@ -614,7 +617,7 @@ export class Vegetation {
       // again to make up for the lower ceiling the translucency channel is now
       // baked at so its new margin gradient survives the byte quantisation.
       uTrans: { value: 4.1 },
-      uAtlasPx: { value: ATLAS_PX },
+      uAtlasPx: { value: this.atlasPx },
       // Half-width in pixels below which thin geometry gets widened.
       uRibMin: { value: 1.15 },
       uProj: { value: 800 },
@@ -633,7 +636,7 @@ export class Vegetation {
   }
 
   _bake(renderer) {
-    const size = ATLAS_PX;
+    const size = this.atlasPx;
     const uniforms = {
       uChannel: { value: 0 },
       uTexel: { value: 1 / size },
@@ -651,7 +654,10 @@ export class Vegetation {
     this.leafNrm = shot(1, THREE.NoColorSpace);
     this.leafAux = shot(2, THREE.NoColorSpace);
 
-    this.barkTex = bakeSurface(renderer, BARK, { size: 1024, normalStrength: 3.8 });
+    this.barkTex = bakeSurface(renderer, BARK, {
+      size: this.densityScale < 1 ? 512 : 1024,
+      normalStrength: 3.8,
+    });
 
     const leaf = new THREE.MeshStandardMaterial({
       map: this.leafMap,
@@ -835,10 +841,14 @@ export class Vegetation {
      * normal and mask lookups, is the difference between a boot that takes a
      * second and one that takes ten. */
     const maxDist = SPECIES_LOD[name].cull;
-    for (let z = BOUNDS.z0; z > BOUNDS.z1; z -= spacing) {
-      for (let x = BOUNDS.x0; x < BOUNDS.x1; x += spacing) {
-        const px = x + (rng() - 0.5) * spacing * 1.7;
-        const pz = z + (rng() - 0.5) * spacing * 1.7;
+    // Mobile keeps the same species and placement rules but samples a wider
+    // jittered grid. This reduces both boot-time candidates and resident
+    // instance matrices instead of merely hiding a full desktop forest.
+    const step = spacing / Math.sqrt(this.densityScale);
+    for (let z = BOUNDS.z0; z > BOUNDS.z1; z -= step) {
+      for (let x = BOUNDS.x0; x < BOUNDS.x1; x += step) {
+        const px = x + (rng() - 0.5) * step * 1.7;
+        const pz = z + (rng() - 0.5) * step * 1.7;
         if (px < BOUNDS.x0 || px > BOUNDS.x1 || pz > BOUNDS.z0 || pz < BOUNDS.z1) continue;
         this.trail.nearest(px, pz, q);
         if (q.dist > maxDist) continue;
