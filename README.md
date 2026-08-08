@@ -30,6 +30,7 @@ Original live demo: **https://starknightt.github.io/jungle-trail/**
 - [Visual system](doc/visual.md)
 - [Technical map](doc/technical.md)
 - [Technical and visual retrospective](doc/retrospective.md)
+- [Gameplay proposal (draft)](doc/gameplay-plan.md)
 
 ## Running it locally
 
