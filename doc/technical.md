@@ -27,7 +27,7 @@
 - `_qa/capture.mjs`、`_qa/ui/`：移动端状态截图脚本与首轮/复验证据。
 - `_qa/capture-clue.mjs`：第一处观察的附近、对准、完成、中文窄屏与 reduced-motion 自动断言和截图。
 - `_qa/capture-clue-material.mjs`：在 390×844 真实运行画面中断言古代合金嵌环与氧化缝存在，并捕获目标未被准星覆盖的材质证据。
-- `_qa/capture-navigation.mjs`：路径扶正、34 m 线索预告和离路恢复提示的数值断言与构图证据。
+- `_qa/capture-navigation.mjs`：路径扶正、38 m 线索预告和离路恢复提示的数值断言与构图证据。
 - `_qa/playthrough-input.mjs`：不调用传送/自动行走 API，使用真实触控事件分别验证摇杆、冲刺和右侧转镜头。
 - `_production/poster-source.md`：正式海报提示词、来源、平台 transit 失败和双尺寸检查记录。
 - `doc/retrospective.md`：本次源码改造、场景化首屏、性能、视觉 QA、失败案例与跨项目复用合同。
@@ -82,7 +82,7 @@ WebGL 画布随窗口尺寸更新相机和渲染目标。DOM HUD 直接使用安
 - 调整地标、完成阈值和旅程 UI：修改 `landmarkFor()`、`finishJourney()` 及 `src/i18n.js`。
 - 调整观察范围、预告范围、中心半径、稳定时长和回退：修改 `src/main.js` 的 `CLUE_*` 常量；更换目标主体或合金嵌件时修改 `src/world/ruins.js` 的 `firstStoneSignal` / `observationAnchors`，不要在 HUD 中硬编码世界坐标。
 - 调整移动端扶正与离路提示：修改 `src/player/controller.js` 的 `setTrailAssist()` 合同和 `src/main.js` 的 `updateRouteCue()`；保持相机不被自动旋转。
-- 扩展第二、第三处观察：沿用 `Game.observationProbe()` 与同一 UI 状态合同，为门址和瀑布分别增加语义 anchor；完成三章前不增加排行榜或存档。
+- 扩展第一章第二、第三处证据：沿用 `Game.observationProbe()` 与同一 UI 状态合同，为水门轴线和瀑布缺口分别增加语义 anchor；完整产品章节与调查模式按 `doc/gameplay-plan.md` 分 Gate 推进。
 - 调整移动性能：修改 `src/app.js` 的移动画质参数、`src/world/vegetation.js` 的 `densityScale/atlasPx`、`src/render/atmosphere.js` 与 `src/world/water.js` 的 tier 表。
 - 调整场景和路径：修改 `src/world/path.js`、`terrain.js`、`vegetation.js`、`ruins.js` 或 `water.js`；改动后必须重新做上游基线对照。
 - 调整颜色、图标、面板和响应式布局：修改 `src/ui.css` 与 `index.html`，并同步 `doc/visual.md`。
