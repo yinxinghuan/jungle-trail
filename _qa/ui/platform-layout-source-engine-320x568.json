@@ -1,0 +1,76 @@
+{
+  "layout": {
+    "chapter": "Chapter 4 · Source Engine",
+    "navButtons": 4,
+    "startRect": {
+      "x": 28.796875,
+      "y": 466,
+      "width": 161.96875,
+      "height": 48,
+      "top": 466,
+      "right": 190.765625,
+      "bottom": 514,
+      "left": 28.796875
+    },
+    "overflow": false,
+    "game": {
+      "calls": 412,
+      "triangles": 3007010,
+      "geometries": 317,
+      "textures": 42,
+      "programs": 25,
+      "water": {
+        "spray": 0,
+        "impact": [
+          1,
+          1.64,
+          -386.44
+        ],
+        "lip": [
+          1,
+          19.64,
+          -390.9
+        ],
+        "fallSeconds": 1.65,
+        "drop": 18,
+        "mirror": "idle"
+      },
+      "veg": {
+        "meshes": 2410,
+        "instances": 64482,
+        "tris": 33575312
+      },
+      "body": {
+        "meshes": 11,
+        "firstPersonDraws": 5,
+        "shadowDraws": 6,
+        "triangles": 5404,
+        "firstPersonTriangles": 2304,
+        "shadowTriangles": 3100,
+        "textures": 3,
+        "bones": 22,
+        "quality": "low"
+      },
+      "collision": {
+        "colliders": 2690,
+        "cells": 1944,
+        "byKind": {
+          "stone": 438,
+          "tree": 328,
+          "buttress": 1316,
+          "palm": 513,
+          "log": 95
+        },
+        "queries": 0,
+        "averageCandidates": 0,
+        "maxCandidates": 0,
+        "averageTests": 0,
+        "maxTests": 0,
+        "averageMs": 0,
+        "maxMs": 0,
+        "contacts": 0
+      }
+    }
+  },
+  "errors": []
+}

@@ -1,0 +1,80 @@
+{
+  "layout": {
+    "chapter": "Chapter 4 · Source Engine",
+    "navButtons": 4,
+    "startRect": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "overflow": false,
+    "game": {
+      "calls": 397,
+      "triangles": 2994234,
+      "geometries": 310,
+      "textures": 41,
+      "programs": 24,
+      "water": {
+        "spray": 0,
+        "impact": [
+          1,
+          1.64,
+          -386.44
+        ],
+        "lip": [
+          1,
+          19.64,
+          -390.9
+        ],
+        "fallSeconds": 1.65,
+        "drop": 18,
+        "mirror": "idle"
+      },
+      "veg": {
+        "meshes": 2410,
+        "instances": 64482,
+        "tris": 33575312
+      },
+      "body": {
+        "meshes": 11,
+        "firstPersonDraws": 5,
+        "shadowDraws": 6,
+        "triangles": 5404,
+        "firstPersonTriangles": 2304,
+        "shadowTriangles": 3100,
+        "textures": 3,
+        "bones": 22,
+        "quality": "low"
+      },
+      "collision": {
+        "colliders": 2690,
+        "cells": 1944,
+        "byKind": {
+          "stone": 438,
+          "tree": 328,
+          "buttress": 1316,
+          "palm": 513,
+          "log": 95
+        },
+        "queries": 0,
+        "averageCandidates": 0,
+        "maxCandidates": 0,
+        "averageTests": 0,
+        "maxTests": 0,
+        "averageMs": 0,
+        "maxMs": 0,
+        "contacts": 0
+      }
+    }
+  },
+  "errors": [
+    "[console] Access to resource at 'https://aigram.aiwaves.tech/note/aigram/ai/game/track/report' from origin 'http://localhost:59040' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "[netfail] https://aigram.aiwaves.tech/note/aigram/ai/game/track/report",
+    "[console] Failed to load resource: net::ERR_FAILED"
+  ]
+}

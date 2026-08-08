@@ -134,3 +134,12 @@ Average: **4.9 / 5**. No category is below 3.
 ## Release note
 
 - Local external-guest evidence confirms the managed visitor CTA remains usable. After deployment, both live bundles must contain the first-trace advance copy before the release is claimed complete.
+# Full Expedition QA · 2026-08-08
+
+- P1 首轮：证据圆环错误旋转为水平面；修复为面向观察轴。
+- P1 首轮：终章中央实体遮住瀑布；修复为两侧承重、中央开放的 22 m 水源框架。
+- P1 首轮：双塔间距超出手机竖屏水平视场；由 16.8 m 收紧到 8 m，保持 14 m 塔高并复拍观察轴。
+- Platform-layout：入口 390×844、入口 320×568、游戏中、暂停、结算和测绘挑战均无页面溢出；关键按钮不低于 44 px。
+- External-guest：访客登录扩展可关闭；没有为外部覆盖修改平台内相机或 HUD。
+- Low 画质：运动模糊与景深均关闭；四章当前 scene calls 约 388–412，章节地标本身为 0–4 个合并批次，无新增全屏 pass。
+- 匹配复验证据：`shots/qa2-*`、`shots/qa3-ch3`；产品状态证据：本目录新增 `platform-layout-*-{entry,gameplay,pause,complete,survey}-*.png`。

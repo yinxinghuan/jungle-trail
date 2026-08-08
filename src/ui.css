@@ -50,6 +50,7 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
 .jt-sleeping__content { position: relative; z-index: 2; width: min(82vw, 420px); margin-top: -4vh; transform: translateY(0); transition: width 700ms var(--jt-ease), margin 700ms var(--jt-ease), transform 700ms var(--jt-ease); }
 .jt-sleeping__eyebrow,.jt-panel__eyebrow { margin: 0 0 14px; color: var(--jt-moss); font-size: 11px; font-weight: 700; letter-spacing: .18em; }
 .jt-sleeping h1 { margin: 0; font-size: clamp(54px, 16vw, 88px); font-weight: 250; line-height: .82; letter-spacing: .08em; text-shadow: 0 10px 40px rgba(0,0,0,.48); }
+.jt-sleeping__chapter { margin: 16px 0 0; color: var(--jt-ink); font-size: 13px; font-weight: 650; letter-spacing: .12em; text-transform: uppercase; }
 .jt-sleeping__copy { max-width: 33ch; margin: 26px 0 28px; color: var(--jt-muted); font-size: 16px; line-height: 1.55; }
 .jt-sleeping__status { min-height: 20px; margin: 18px 0 0; color: var(--jt-muted); font-size: 12px; letter-spacing: .08em; }
 .jt-sleeping.is-building .jt-sleeping__status::after { content: ""; display: inline-block; width: 32px; height: 1px; margin: 0 0 3px 10px; background: var(--jt-moss); animation: jt-grow 1.4s var(--jt-ease) infinite; transform-origin: left; }
@@ -59,6 +60,14 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
 .jt-button:active { transform: scale(.96); border-color: var(--jt-moss); }
 .jt-button:focus-visible,.jt-icon-button:focus-visible,.jt-action-button:focus-visible { outline: 2px solid var(--jt-moss); outline-offset: 3px; }
 .jt-button:disabled { opacity: .48; }
+
+.jt-chapter-nav { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 7px; width: min(100%, 440px); margin: 0 0 16px; }
+.jt-chapter-nav__item { min-width: 0; min-height: 48px; padding: 7px 5px; color: rgba(240,243,233,.58); border: 1px solid rgba(216,228,209,.18); border-radius: 5px; background: rgba(5,10,7,.34); text-align: center; }
+.jt-chapter-nav__item b,.jt-chapter-nav__item span { display: block; }
+.jt-chapter-nav__item b { color: inherit; font-size: 13px; font-weight: 700; }
+.jt-chapter-nav__item span { margin-top: 3px; overflow: hidden; font-size: 8px; font-weight: 650; letter-spacing: .06em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.jt-chapter-nav__item.is-current { color: var(--jt-ink); border-color: rgba(190,214,168,.60); background: rgba(102,129,83,.25); }
+.jt-chapter-nav__item:disabled { color: rgba(240,243,233,.28); }
 
 .jt-hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; color: var(--jt-ink); }
 .jt-hud__top { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 16px; right: 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
@@ -125,6 +134,8 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
 .jt-complete__content { width: min(100%, 520px); margin: 0 auto; }
 .jt-complete h2 { margin: 0 0 8px; font-size: clamp(30px, 9vw, 48px); font-weight: 260; letter-spacing: .03em; }
 .jt-complete p { margin: 0 0 20px; color: var(--jt-muted); font-size: 14px; }
+.jt-complete .jt-complete__conclusion { max-width: 46ch; margin-bottom: 10px; color: var(--jt-ink); font-size: 16px; line-height: 1.5; }
+.jt-complete .jt-complete__stats { margin-top: -10px; color: var(--jt-moss); font-size: 12px; letter-spacing: .05em; }
 .jt-complete__actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
 @keyframes jt-grow { 0%,100% { transform: scaleX(.18); opacity: .35; } 50% { transform: scaleX(1); opacity: 1; } }
@@ -155,6 +166,7 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
   .jt-sleeping__copy { margin: 18px 0 20px; }
   #sleeping.is-ready { padding: 0 24px max(24px, calc(env(safe-area-inset-bottom) + 16px)); }
   #sleeping.is-ready .jt-sleeping__copy { margin: 12px 0 14px; }
+  .jt-chapter-nav { margin-bottom: 10px; }
   #sleeping.is-ready .jt-sleeping__status { margin-top: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {

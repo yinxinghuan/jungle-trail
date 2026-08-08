@@ -54,10 +54,10 @@ import { FS_VERT, DEPTH_GLSL, SSTEP } from '../gfx/glsl.js';
  * short shutter so the scene still grades as the same work.
  */
 const TIER_GRADE = {
-  low: { bloom: 4, dof: 0, motion: 4, shutter: 0.22 },
-  medium: { bloom: 6, dof: 8, motion: 8, shutter: 0.45 },
-  high: { bloom: 8, dof: 12, motion: 20, shutter: 1.0 },
-  ultra: { bloom: 8, dof: 16, motion: 28, shutter: 1.0 },
+  low: { bloom: 4, dof: 0, motion: 0, shutter: 0.0 },
+  medium: { bloom: 5, dof: 4, motion: 4, shutter: 0.16 },
+  high: { bloom: 6, dof: 8, motion: 8, shutter: 0.28 },
+  ultra: { bloom: 7, dof: 12, motion: 12, shutter: 0.40 },
 };
 
 const MAX_DOF = 16;

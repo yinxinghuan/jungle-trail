@@ -838,6 +838,7 @@ export class Ruins {
     this._buildGrid(B);
     this._emit(B);
     this._buildFirstStoneSignal();
+    this._buildExpeditionSignals();
   }
 
   _registerColliders(B) {
@@ -901,22 +902,31 @@ export class Ruins {
      * treats as border, which is where a repoussoir belongs. */
     const gy = T.height(0.4, -313.0);
     wall(B, ctx, {
-      a: [-0.4, -311.4], b: [1.2, -314.2],
-      height: () => 3.55, thick: 1.05, len: 0.80, rng,
+      a: [-3.0, -310.8], b: [-0.3, -314.6],
+      height: (u) => 5.75 - 0.42 * u + 0.18 * Math.sin(u * 8.0),
+      thick: 1.22, len: 0.82, rng,
       settle: 0.22, loosen: 0.35, spallChance: 0.5,
     });
     // Two corbel courses stepping out over the opening, most of them gone.
     for (let i = 0; i < 2; i++) {
       if (i === 1 && rng() < 0.5) break;
-      slab(B, ctx, 0.4 + 0.22 * (i + 1), gy + 3.55 + 0.26 + i * 0.44, -313.0,
-        1.5, 0.42, 1.24 + i * 0.3, [0.03, 0.42, -0.02], rng);
+      slab(B, ctx, -0.6 + 0.22 * (i + 1), gy + 5.55 + 0.26 + i * 0.44, -313.1,
+        1.8, 0.42, 1.24 + i * 0.3, [0.03, 0.42, -0.02], rng);
     }
     // The east jamb, reduced to a stump on the far bank of the channel.
     wall(B, ctx, {
-      a: [6.0, -312.3], b: [7.3, -314.9],
-      height: (u) => 1.55 - 0.5 * u, thick: 1.0, len: 0.78, rng,
-      settle: 0.26, loosen: 1.3,
+      a: [8.2, -312.0], b: [10.4, -315.2],
+      height: (u) => 4.7 - 1.25 * u + 0.3 * Math.sin(u * 10.0),
+      thick: 1.16, len: 0.80, rng,
+      settle: 0.26, loosen: 0.82,
     });
+    /* Two surviving lintel rafts leave a broken bite above the centre. Their
+     * underside clears the player by more than three metres, so the gate is a
+     * navigable piece of architecture rather than a wall disguised as one. */
+    slab(B, ctx, 1.15, gy + 5.52, -313.2,
+      3.4, 0.72, 1.28, [0.015, 0.42, -0.025], rng, { spalls: 3, erode: 0.08 });
+    slab(B, ctx, 6.25, gy + 5.25, -313.2,
+      3.8, 0.76, 1.30, [-0.035, 0.42, 0.06], rng, { spalls: 3, erode: 0.09 });
     /* The lintel, down. One end still caught on the jamb it was seated on and
      * the other in the litter, which is how a span actually fails — it drops
      * at the weak end and hinges, it does not fall flat. */
@@ -1310,6 +1320,44 @@ export class Ruins {
     const localAnchor = new THREE.Vector3(0, 0.06, signal.face * 0.27)
       .applyQuaternion(signal.quaternion);
     this.observationAnchors.firstStone = signal.position.clone().add(localAnchor);
+  }
+
+  _buildExpeditionSignals() {
+    const alloy = new THREE.MeshStandardMaterial({
+      color: 0xb38c50, roughness: 0.34, metalness: 0.82, envMapIntensity: 0.78,
+    });
+    const patina = new THREE.MeshStandardMaterial({
+      color: 0x294f43, roughness: 0.70, metalness: 0.38, envMapIntensity: 0.38,
+    });
+    const root = new THREE.Group();
+    root.name = 'expedition-alloy-signals';
+
+    const gateY = this.terrain.height(0.4, -313.0);
+    for (const [x, y, z, h, rot] of [
+      [-0.28, gateY + 3.05, -313.55, 2.9, 0.42],
+      [8.18, gateY + 2.64, -313.36, 2.25, 0.42],
+    ]) {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.075, h, 0.035), alloy);
+      strip.position.set(x, y, z);
+      strip.rotation.y = rot;
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.17, 0.045), patina);
+      seam.position.copy(strip.position);
+      seam.position.y += h * 0.18;
+      seam.rotation.y = rot;
+      root.add(strip, seam);
+    }
+
+    const waterY = this.terrain.height(0, -365.8);
+    for (const x of [-8.38, 8.38]) {
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.08, 0.20), alloy);
+      plate.position.set(x, waterY + 1.05, -365.72);
+      plate.rotation.set(0.05, 0, x < 0 ? -0.18 : 0.18);
+      root.add(plate);
+    }
+    this.root.add(root);
+
+    this.observationAnchors.gateAxis = new THREE.Vector3(3.95, gateY + 3.0, -313.25);
+    this.observationAnchors.waterGap = new THREE.Vector3(0, waterY + 2.15, -366.15);
   }
 
   /* --------------------------------------------------------------- bakes */

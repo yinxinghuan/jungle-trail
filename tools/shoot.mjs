@@ -34,6 +34,8 @@ const FOV = +flag('fov', 0);
  * ladder ships is not `high`, and a requirement written "at every stop and every
  * tier" cannot be checked by a tool that can only visit one of them. */
 const TIER = flag('tier', 'high');
+const CHAPTER = flag('chapter', 'trail-remembers');
+const TARGET = flag('target', '');
 
 const outDir = path.join(ROOT, 'shots', tag);
 fs.rmSync(outDir, { recursive: true, force: true });
@@ -45,7 +47,11 @@ fs.mkdirSync(outDir, { recursive: true });
  * the scene and having to remember to edit it back. */
 const JS = flag('js', '');
 
-await run({ width: W, height: H, hash: 'manual&tier=' + TIER }, async ({ page, errs, gl }) => {
+await run({
+  width: W, height: H, hash: 'manual&tier=' + TIER,
+  query: `chapter=${encodeURIComponent(CHAPTER)}&unlock=all`,
+  root: path.join(ROOT, 'dist'),
+}, async ({ page, errs, gl }) => {
   await page.evaluate(([el, az, fov, js]) => {
     window.__game.setSun(el, az);
     if (fov) {
@@ -57,7 +63,7 @@ await run({ width: W, height: H, hash: 'manual&tier=' + TIER }, async ({ page, e
 
   const results = [];
   for (const t of STOPS) {
-    await page.evaluate(([t, yaw, pitch]) => {
+    await page.evaluate(([t, yaw, pitch, target]) => {
       const g = window.__game;
       g.goTo(t);
       if (yaw) g.walker.yaw += yaw;
@@ -65,7 +71,11 @@ await run({ width: W, height: H, hash: 'manual&tier=' + TIER }, async ({ page, e
       // Let the camera height spring settle and any streaming/adaptive state
       // reach the value it would have if you had actually walked here.
       g.warp(2.0);
-    }, [t, YAW, PITCH]);
+      if (target && g.observationAnchors?.[target]) {
+        g.camera.lookAt(g.observationAnchors[target]);
+        g.camera.updateMatrixWorld(true);
+      }
+    }, [t, YAW, PITCH, TARGET]);
     await page.waitForTimeout(220);
 
     const st = await page.evaluate(() => {

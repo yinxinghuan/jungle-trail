@@ -23,6 +23,8 @@ import { Canopy, patchCanopyLight } from './render/canopy.js';
 import { Atmosphere } from './render/atmosphere.js';
 import { Ambience } from './audio/engine.js';
 import { DebugOverlay } from './debug.js';
+import { chapterById } from './game/chapters.js';
+import { ChapterLandmarks } from './world/chapter-landmarks.js';
 
 /* Quality tiers.
  *
@@ -41,7 +43,7 @@ const TIERS = {
 const TIER_ORDER = ['low', 'medium', 'high', 'ultra'];
 
 class Game {
-  constructor(canvas) {
+  constructor(canvas, { chapterId = 'trail-remembers' } = {}) {
     this.canvas = canvas;
     this.clock = new THREE.Clock();
     this.paused = false;
@@ -57,6 +59,7 @@ class Game {
       visible: false, distance: Infinity, centerDistance: Infinity,
       screenX: 0, screenY: 0,
     };
+    this.chapter = chapterById(chapterId);
 
     const hash = new URLSearchParams(location.hash.slice(1));
     this.pinnedTier = TIER_ORDER.includes(location.hash.slice(1)) ? location.hash.slice(1)
@@ -240,7 +243,7 @@ class Game {
      * by the roof density field, and it costs one fewer light in every shader
      * in the scene as well. */
 
-    this.trail = new Trail();
+    this.trail = new Trail(this.chapter.id);
 
     /* The build order through here is a dependency chain and none of the links
      * are optional. The ruin *plan* is pure arithmetic over the trail, so it
@@ -265,6 +268,15 @@ class Game {
     this.ruins = new Ruins(this.renderer, this.terrain, this.trail, this.ruinPlan,
                            undefined, this.collision);
     scene.add(this.ruins.root);
+
+    this.chapterLandmarks = new ChapterLandmarks(
+      this.terrain, this.trail, this.chapter, this.tier,
+    );
+    scene.add(this.chapterLandmarks.root);
+    this.observationAnchors = {
+      ...this.ruins.observationAnchors,
+      ...this.chapterLandmarks.observationAnchors,
+    };
 
     this.veg = new Vegetation(
       this.renderer, this.terrain, this.trail, undefined,
@@ -322,7 +334,8 @@ class Game {
      * the patch is not subtly wrong, it is a leaf standing in a shaft of light
      * that the shaft does not touch, and that reads instantly. */
     for (const m of [this.terrainMat, this.veg.leafMat, this.veg.woodMat,
-                     this.ruins.material, ...this.water.materials,
+                     this.ruins.material, ...this.chapterLandmarks.materials,
+                     ...this.water.materials,
                      ...this.body.materials]) {
       patchCanopyLight(m, this.canopy);
     }
@@ -652,6 +665,7 @@ class Game {
     this.ambience?.dispose();
     this.walker.dispose();
     this.body.dispose();
+    this.chapterLandmarks?.dispose();
     this.atmos?.dispose();
     this.canopy?.dispose();
     this.debug?.dispose();
@@ -688,8 +702,10 @@ function installWarpKeys(game) {
   });
 }
 
-export function startGame(canvas = document.getElementById('view'), { autoBegin = true } = {}) {
-  const game = new Game(canvas);
+export function startGame(canvas = document.getElementById('view'), {
+  autoBegin = true, chapterId = 'trail-remembers',
+} = {}) {
+  const game = new Game(canvas, { chapterId });
   window.__game = game;
   window.THREE = THREE;
   game.debug = new DebugOverlay(game);

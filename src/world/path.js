@@ -25,13 +25,32 @@ const CONTROL = [
   [11, -270], [7, -300], [1, -330], [0, -358], [0, -378],
 ];
 
+const CONTROL_VARIANTS = {
+  'flooded-threshold': [
+    [0, 24], [0, 0], [-7, -29], [-15, -58], [-8, -88], [6, -116],
+    [14, -148], [5, -178], [-13, -208], [-15, -239], [2, -270], [9, -300],
+    [1, -330], [0, -358], [0, -378],
+  ],
+  'listening-ridge': [
+    [0, 24], [0, 0], [9, -28], [15, -58], [4, -89], [-13, -118],
+    [-19, -149], [-8, -179], [12, -207], [17, -239], [4, -271], [-7, -301],
+    [1, -330], [0, -358], [0, -378],
+  ],
+  'source-engine': [
+    [0, 24], [0, 0], [-5, -29], [7, -58], [13, -89], [0, -118],
+    [-16, -149], [-11, -179], [7, -209], [14, -240], [-2, -270], [-5, -301],
+    [1, -330], [0, -358], [0, -378],
+  ],
+};
+
 export const PATH_END_Z = -358;   // plunge pool centre
 export const CLIFF_Z = -392;      // cliff face plane
 
 export class Trail {
-  constructor() {
+  constructor(chapterId = 'trail-remembers') {
+    const control = CONTROL_VARIANTS[chapterId] || CONTROL;
     this.curve = new THREE.CatmullRomCurve3(
-      CONTROL.map(([x, z]) => new THREE.Vector3(x, 0, z)),
+      control.map(([x, z]) => new THREE.Vector3(x, 0, z)),
       false, 'catmullrom', 0.5,
     );
 

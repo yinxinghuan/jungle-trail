@@ -113,12 +113,13 @@ export async function capture(page, file) {
 /**
  * Boot server + browser + page, run `body`, and guarantee teardown.
  *
- * @param {{width?:number,height?:number,hash?:string,cpu?:boolean,timeout?:number,url?:string}} opts
+ * @param {{width?:number,height?:number,hash?:string,query?:string,root?:string,cpu?:boolean,timeout?:number,url?:string}} opts
  * @param {(ctx:{page:any,url:string,errs:string[],gl:object}) => Promise<void>} body
  */
 export async function run(opts, body) {
   const {
-    width = 1600, height = 900, hash = 'manual',
+    width = 1600, height = 900, hash = 'manual', query = '',
+    root: serveRoot = ROOT,
     cpu = process.argv.includes('--cpu'),
     timeout = 180_000,
     url: externalUrl = process.env.JUNGLE_URL || null,
@@ -134,9 +135,9 @@ export async function run(opts, body) {
   let srv = null;
   let url = externalUrl;
   if (!url) {
-    srv = serve();
+    srv = serve(serveRoot);
     await new Promise(r => srv.listen(0, r));
-    url = `http://localhost:${srv.address().port}/#${hash}`;
+    url = `http://localhost:${srv.address().port}/${query ? `?${query}` : ''}#${hash}`;
   }
 
   const unpin = pinChildren();

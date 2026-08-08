@@ -1,5 +1,8 @@
 import './ui.css';
 import { locale, t } from './i18n.js';
+import { CHAPTERS, chapterById } from './game/chapters.js';
+import { InvestigationSession } from './game/investigation.js';
+import { ProgressStore } from './game/progress-store.js';
 
 document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
 const coarseInput = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
@@ -7,6 +10,7 @@ const coarseInput = matchMedia('(pointer: coarse)').matches || navigator.maxTouc
 const $ = (id) => document.getElementById(id);
 const ui = {
   shell: $('shell'), canvas: $('view'), sleeping: $('sleeping'), sleepingCopy: $('sleeping-copy'),
+  chapterHeading: $('chapter-heading'), chapterNav: $('chapter-nav'),
   start: $('start-button'), status: $('build-status'), hud: $('hud'),
   progress: $('progress-fill'), landmark: $('landmark-label'), sound: $('sound-button'),
   clueProgress: $('clue-progress'), clueCount: $('clue-count'),
@@ -17,8 +21,11 @@ const ui = {
   pause: $('pause-button'), look: $('look-zone'), ghost: $('ghost-gesture'), move: $('move-control'), knob: $('stick-knob'),
   sprint: $('sprint-button'), jump: $('jump-button'), hint: $('hint'),
   pausePanel: $('pause-panel'), pauseTitle: $('pause-title'), resume: $('resume-button'), trail: $('trail-button'),
+  mode: $('mode-button'),
   complete: $('complete-panel'), completeTitle: $('complete-title'), completeTime: $('complete-time'),
-  observe: $('observe-button'), restart: $('restart-button'), error: $('error-panel'),
+  completeConclusion: $('complete-conclusion'), observe: $('observe-button'), next: $('next-button'),
+  completeStats: $('complete-stats'),
+  restart: $('restart-button'), error: $('error-panel'),
   errorTitle: $('error-title'), errorCopy: $('error-copy'), retry: $('retry-button'),
 };
 
@@ -45,8 +52,46 @@ ui.sound.innerHTML = icons.sound;
 ui.pause.innerHTML = icons.pause;
 ui.sound.setAttribute('aria-label', t('mute'));
 ui.pause.setAttribute('aria-label', t('pause'));
-ui.clueCount.textContent = t('clueCount', { n: 0 });
-ui.mission.textContent = t('mission');
+const progressStore = new ProgressStore();
+const bootParams = new URLSearchParams(location.search);
+const unlockAll = bootParams.get('unlock') === 'all';
+const requestedChapter = chapterById(bootParams.get('chapter'));
+let chapter = unlockAll || progressStore.value.unlocked.includes(requestedChapter.id)
+  ? requestedChapter : CHAPTERS[0];
+let objective = chapter;
+let investigation = new InvestigationSession(objective);
+let surveyActive = false;
+let sessionMetrics = { hints: 0, offroute: 0 };
+
+function renderChapterNav() {
+  ui.chapterHeading.textContent = `${t('chapterLabel', { n: chapter.number })} · ${t(chapter.titleKey)}`;
+  ui.chapterNav.replaceChildren(...CHAPTERS.map((item) => {
+    const button = document.createElement('button');
+    const unlocked = unlockAll || progressStore.value.unlocked.includes(item.id);
+    button.type = 'button';
+    button.className = `jt-chapter-nav__item${item.id === chapter.id ? ' is-current' : ''}`;
+    button.disabled = !unlocked || item.id === chapter.id;
+    button.setAttribute('aria-current', item.id === chapter.id ? 'page' : 'false');
+    button.innerHTML = `<b>${String(item.number).padStart(2, '0')}</b><span>${unlocked ? t(item.titleKey) : t('locked')}</span>`;
+    if (unlocked && item.id !== chapter.id) button.addEventListener('click', () => {
+      const url = new URL(location.href);
+      url.searchParams.set('chapter', item.id);
+      location.assign(url);
+    });
+    return button;
+  }));
+  ui.sleepingCopy.textContent = t(chapter.subtitleKey);
+  ui.mission.textContent = t(chapter.missionKey);
+}
+
+renderChapterNav();
+const renderMode = () => {
+  ui.mode.textContent = t(progressStore.value.hintMode === 'expert' ? 'expertMode' : 'quietMode');
+};
+renderMode();
+progressStore.load().then(() => { renderChapterNav(); renderMode(); }).catch(() => {});
+
+ui.clueCount.textContent = t('clueCount', { n: 0, total: objective.evidence.length });
 ui.clueRevealKicker.textContent = t('clueKicker');
 ui.clueRevealCopy.textContent = t('clueRecorded');
 
@@ -71,22 +116,7 @@ let previewTimer = 0;
 let missionTimer = 0;
 let clueRevealTimer = 0;
 let lastHudAt = 0;
-let clueProgress = 0;
-let clueComplete = false;
-let clueAlignedAt = 0;
-let clueLastAlignedAt = 0;
-let clueAnnounced = false;
-let clueNearbyAt = 0;
-let clueHelped = false;
 let offTrailAt = 0;
-
-const CLUE_PREVIEW_RANGE = 38;
-const CLUE_RANGE = 22;
-const CLUE_ALIGN_RADIUS = 0.09;
-const CLUE_BREAK_RADIUS = 0.14;
-const CLUE_CONFIRM_MS = 120;
-const CLUE_GRACE_MS = 350;
-const CLUE_HOLD_SECONDS = 1.1;
 
 function supportsWebGL2() {
   try { return !!document.createElement('canvas').getContext('webgl2'); }
@@ -124,21 +154,23 @@ function landmarkFor(tValue) {
 }
 
 function setObservationProgress(value) {
-  clueProgress = Math.min(1, Math.max(0, value));
-  ui.observationProgress.style.strokeDashoffset = String(1 - clueProgress);
-  ui.hud.dataset.clueProgress = clueProgress.toFixed(3);
+  const progress = Math.min(1, Math.max(0, value));
+  ui.observationProgress.style.strokeDashoffset = String(1 - progress);
+  ui.hud.dataset.clueProgress = progress.toFixed(3);
 }
 
-function completeFirstClue() {
-  if (clueComplete) return;
-  clueComplete = true;
+function completeEvidence(tracker) {
   setObservationProgress(1);
   ui.hud.dataset.clueState = 'recorded';
   ui.observation.hidden = true;
-  ui.clueProgress.classList.add('is-recorded');
+  ui.clueProgress.classList.toggle('is-recorded', investigation.complete);
   ui.clueProgress.classList.remove('is-signaled');
   ui.observation.classList.remove('is-helped');
-  ui.clueCount.textContent = t('clueCount', { n: 1 });
+  ui.clueCount.textContent = t('clueCount', {
+    n: investigation.recordedCount, total: objective.evidence.length,
+  });
+  ui.clueRevealKicker.textContent = t('clueKicker', { n: investigation.recordedCount });
+  ui.clueRevealCopy.textContent = t(tracker.contract.recordedKey || 'clueRecorded');
   ui.clueReveal.hidden = false;
   clearTimeout(clueRevealTimer);
   clueRevealTimer = setTimeout(() => { ui.clueReveal.hidden = true; }, 3600);
@@ -146,38 +178,44 @@ function completeFirstClue() {
   navigator.vibrate?.(20);
 }
 
-function updateFirstClue(now, dt) {
-  if (!game || clueComplete || userPaused || docHidden || offscreen || completed) {
+function updateEvidence(now, dt) {
+  const tracker = investigation.active;
+  if (!game || !tracker || userPaused || docHidden || offscreen || completed) {
     ui.observation.hidden = true;
     return;
   }
-  const anchor = game.ruins?.observationAnchors?.firstStone;
+  const contract = tracker.contract;
+  const anchor = game.observationAnchors?.[contract.anchor];
+  if (!anchor) {
+    ui.observation.hidden = true;
+    ui.hud.dataset.clueState = 'anchor-missing';
+    return;
+  }
   const probe = game.observationProbe(anchor);
-  if (!clueAnnounced && probe.distance <= CLUE_PREVIEW_RANGE) {
-    clueAnnounced = true;
+  const result = tracker.update({
+    ...probe,
+    sprinting: game.walker.isSprinting,
+  }, now, dt, {
+    helpDelayMs: progressStore.value.hintMode === 'expert' ? 8000 : 4500,
+  });
+  if (result.announcedNow) {
     ui.clueProgress.classList.add('is-signaled');
-    ui.mission.textContent = t('clueAhead');
+    ui.mission.textContent = t(contract.aheadKey || 'clueAhead');
     ui.mission.hidden = false;
     clearTimeout(missionTimer);
     missionTimer = setTimeout(() => { ui.mission.hidden = true; }, 3200);
     try { game.ambience?.playClueHint?.(anchor); } catch (_) { /* audio is non-fatal */ }
   }
-  const nearby = probe.distance <= CLUE_RANGE;
   ui.hud.dataset.clueDistance = Number.isFinite(probe.distance) ? probe.distance.toFixed(2) : '';
   ui.hud.dataset.clueCenterDistance = Number.isFinite(probe.centerDistance)
     ? probe.centerDistance.toFixed(3) : '';
-  if (!nearby) {
-    ui.hud.dataset.clueState = clueAnnounced ? 'signaled' : 'roaming';
+  if (!result.nearby) {
+    ui.hud.dataset.clueState = result.state;
     ui.observation.hidden = true;
     ui.observation.classList.remove('is-helped');
-    clueNearbyAt = 0;
-    clueAlignedAt = 0;
-    clueLastAlignedAt = 0;
-    if (clueProgress) setObservationProgress(0);
+    setObservationProgress(result.progress);
     return;
   }
-
-  if (!clueNearbyAt) clueNearbyAt = now;
 
   if (hintStage !== 'done') {
     cancelGhostDemo();
@@ -188,49 +226,35 @@ function updateFirstClue(now, dt) {
   ui.observation.hidden = false;
   const clueAngle = Math.atan2(probe.screenX, -probe.screenY);
   ui.observation.style.setProperty('--jt-clue-angle', `${clueAngle}rad`);
-  const sprinting = game.walker.isSprinting;
-  const centered = probe.visible && probe.centerDistance <= CLUE_ALIGN_RADIUS;
-  const tracking = !sprinting && probe.visible
-    && (centered || (clueLastAlignedAt && probe.centerDistance <= CLUE_BREAK_RADIUS));
-  if (tracking) {
-    if (!clueAlignedAt) clueAlignedAt = now;
-    clueLastAlignedAt = now;
-    if (now - clueAlignedAt >= CLUE_CONFIRM_MS) {
-      setObservationProgress(clueProgress + dt / CLUE_HOLD_SECONDS);
-    }
-  } else {
-    clueAlignedAt = 0;
-    const inGrace = clueLastAlignedAt && now - clueLastAlignedAt <= CLUE_GRACE_MS;
-    if (!inGrace) setObservationProgress(clueProgress - dt * 0.85 / CLUE_HOLD_SECONDS);
-  }
-
-  if (!tracking && !clueHelped && now - clueNearbyAt >= 4500) {
-    clueHelped = true;
+  setObservationProgress(result.progress);
+  if (result.helpedNow) {
+    sessionMetrics.hints += 1;
     try { game.ambience?.playClueHint?.(anchor); } catch (_) { /* audio is non-fatal */ }
   }
 
-  ui.observation.classList.toggle('is-aligned', !!tracking);
-  ui.observation.classList.toggle('is-helped', clueHelped && !tracking);
-  ui.observationLabel.textContent = sprinting
+  ui.observation.classList.toggle('is-aligned', !!result.tracking);
+  ui.observation.classList.toggle('is-helped', result.helped && !result.tracking);
+  ui.observationLabel.textContent = game.walker.isSprinting
     ? t('clueSprint')
-    : tracking ? t('clueFocus') : clueHelped ? t('clueSearch') : t('clueNearby');
-  ui.hud.dataset.clueState = tracking ? 'aligned' : 'nearby';
-  if (clueProgress >= 1) completeFirstClue();
+    : result.tracking ? t(contract.focusKey || 'clueFocus')
+      : result.helped ? t(contract.searchKey || 'clueSearch')
+        : t(contract.nearbyKey || 'clueNearby');
+  ui.hud.dataset.clueState = result.state;
+  if (result.completed) completeEvidence(tracker);
 }
 
-function resetFirstClue() {
-  clueComplete = false;
-  clueAlignedAt = 0;
-  clueLastAlignedAt = 0;
-  clueAnnounced = false;
-  clueNearbyAt = 0;
-  clueHelped = false;
+function resetInvestigation() {
+  surveyActive = false;
+  objective = chapter;
+  investigation = new InvestigationSession(objective);
+  sessionMetrics = { hints: 0, offroute: 0 };
+  game?.chapterLandmarks?.setSurveyVisible(false);
   clearTimeout(clueRevealTimer);
   ui.clueReveal.hidden = true;
   ui.clueProgress.classList.remove('is-recorded');
   ui.clueProgress.classList.remove('is-signaled');
   ui.observation.classList.remove('is-helped');
-  ui.clueCount.textContent = t('clueCount', { n: 0 });
+  ui.clueCount.textContent = t('clueCount', { n: 0, total: objective.evidence.length });
   ui.hud.dataset.clueState = 'roaming';
   setObservationProgress(0);
 }
@@ -246,11 +270,16 @@ function updateRouteCue(now) {
   if (offset.dist > 2.4) {
     if (!offTrailAt) offTrailAt = now;
     if (now - offTrailAt >= 1200) {
+      if (!ui.routeCue.dataset.counted) {
+        ui.routeCue.dataset.counted = 'true';
+        sessionMetrics.offroute += 1;
+      }
       ui.routeCue.textContent = t(offset.viewSide < 0 ? 'trailLeft' : 'trailRight');
       ui.routeCue.hidden = false;
     }
   } else if (offset.dist < 1.5) {
     offTrailAt = 0;
+    delete ui.routeCue.dataset.counted;
     ui.routeCue.hidden = true;
   }
 }
@@ -264,13 +293,21 @@ function updateHud(now = performance.now()) {
   const landmark = landmarkFor(trailT);
   if (landmark !== previousLandmark) {
     previousLandmark = landmark;
-    ui.landmark.textContent = t('landmarks')[landmark];
+    ui.landmark.textContent = t(chapter.landmarksKey)[landmark];
     ui.landmark.classList.remove('is-revealing');
     requestAnimationFrame(() => ui.landmark.classList.add('is-revealing'));
   }
-  updateFirstClue(now, dt);
+  updateEvidence(now, dt);
   updateRouteCue(now);
-  if (!completed && trailT >= 0.955) finishJourney();
+  if (!completed && trailT >= objective.endT && investigation.complete) finishJourney();
+  if (!completed && trailT >= objective.endT && !investigation.complete && ui.mission.hidden) {
+    ui.mission.textContent = t('evidenceMissing', {
+      n: objective.evidence.length - investigation.recordedCount,
+    });
+    ui.mission.hidden = false;
+    clearTimeout(missionTimer);
+    missionTimer = setTimeout(() => { ui.mission.hidden = true; }, 3000);
+  }
   hudRaf = requestAnimationFrame(updateHud);
 }
 
@@ -278,10 +315,74 @@ function finishJourney() {
   completed = true;
   ui.hint.hidden = true;
   const elapsed = (performance.now() - startedAt) / 1000;
-  ui.completeTime.textContent = t('time', { time: formatTime(elapsed) });
+  ui.completeTitle.textContent = t(surveyActive ? 'surveyComplete' : 'complete');
+  ui.completeTime.textContent = t(surveyActive ? 'surveyTime' : 'time', { time: formatTime(elapsed) });
+  ui.completeConclusion.textContent = t(surveyActive ? 'surveyConclusion' : chapter.conclusionKey);
+  ui.completeStats.hidden = !surveyActive;
+  if (surveyActive) ui.completeStats.textContent = t('surveyStats', sessionMetrics);
+  const nextChapter = CHAPTERS[chapter.number];
+  ui.next.hidden = surveyActive || !nextChapter;
+  if (nextChapter) ui.next.textContent = t('nextChapter', { n: nextChapter.number });
   ui.complete.hidden = false;
   ui.hud.classList.add('is-complete');
+  progressStore.update((save) => {
+    if (surveyActive) {
+      const previous = save.surveyBest[chapter.id]?.time || Infinity;
+      save.surveyBest[chapter.id] = {
+        time: Math.min(previous, elapsed), mode: save.hintMode,
+        hints: sessionMetrics.hints, offroute: sessionMetrics.offroute,
+        completedAt: Date.now(),
+      };
+    } else {
+      save.completed[chapter.id] = {
+        evidence: investigation.recordedIds(),
+        bestTime: Math.min(save.completed[chapter.id]?.bestTime || Infinity, elapsed),
+        completedAt: Date.now(),
+      };
+      const next = CHAPTERS[chapter.number];
+      if (next && !save.unlocked.includes(next.id)) save.unlocked.push(next.id);
+    }
+    return save;
+  });
+  renderChapterNav();
   navigator.vibrate?.(35);
+}
+
+function startSurvey() {
+  if (!game) return;
+  const candidates = chapter.surveyAnchors;
+  const random = new Uint32Array(1);
+  crypto.getRandomValues(random);
+  const offset = random[0] % 2;
+  const indices = [1 + offset, 3 + offset, 6 + offset].map((index) => Math.min(candidates.length - 1, index));
+  const evidence = indices.map((index, order) => ({
+    id: `survey-${Date.now()}-${order}`,
+    anchor: `survey-${index}`,
+    previewRange: 34, range: 19, hold: 1.05 + order * 0.08,
+    aheadKey: 'surveyAhead', nearbyKey: 'surveyNearby', searchKey: 'surveySearch',
+    focusKey: 'surveyFocus', recordedKey: 'surveyRecorded',
+  }));
+  objective = {
+    ...chapter,
+    evidence,
+    endT: Math.min(0.96, candidates[indices[indices.length - 1]] + 0.045),
+  };
+  investigation = new InvestigationSession(objective);
+  sessionMetrics = { hints: 0, offroute: 0 };
+  surveyActive = true;
+  completed = false;
+  previousLandmark = -1;
+  game.chapterLandmarks?.setSurveyVisible(true);
+  game.goTo(Math.max(0.02, candidates[indices[0]] - 0.07));
+  startedAt = performance.now();
+  ui.complete.hidden = true;
+  ui.hud.classList.remove('is-complete');
+  ui.clueProgress.classList.remove('is-recorded', 'is-signaled');
+  ui.clueCount.textContent = t('clueCount', { n: 0, total: evidence.length });
+  ui.mission.textContent = t('surveyAhead');
+  ui.mission.hidden = false;
+  clearTimeout(missionTimer);
+  missionTimer = setTimeout(() => { ui.mission.hidden = true; }, 3000);
 }
 
 function returnToTrail() {
@@ -509,7 +610,7 @@ async function prepareScene() {
   try {
     const { startGame } = await import('./app.js');
     ui.status.textContent = t('firstFrame');
-    game = startGame(ui.canvas, { autoBegin: false });
+    game = startGame(ui.canvas, { autoBegin: false, chapterId: chapter.id });
     game.walker.setTrailAssist(coarseInput ? 0.38 : 0);
     game.ambience?.setMuted?.(muted);
     attachJoystick();
@@ -537,6 +638,7 @@ function enterExperience() {
   game.begin();
   startedAt = performance.now();
   ui.hud.hidden = false;
+  ui.mission.textContent = t(chapter.missionKey);
   ui.mission.hidden = false;
   clearTimeout(missionTimer);
   missionTimer = setTimeout(() => { ui.mission.hidden = true; }, 3200);
@@ -561,6 +663,13 @@ ui.pause.addEventListener('click', () => {
 ui.resume.addEventListener('click', () => {
   userPaused = false; ui.pausePanel.hidden = true; applyPause();
 });
+ui.mode.addEventListener('click', () => {
+  progressStore.update((save) => {
+    save.hintMode = save.hintMode === 'expert' ? 'guided' : 'expert';
+    return save;
+  });
+  renderMode();
+});
 ui.trail.addEventListener('click', returnToTrail);
 ui.sound.addEventListener('click', () => {
   muted = !muted;
@@ -568,16 +677,41 @@ ui.sound.addEventListener('click', () => {
   ui.sound.innerHTML = muted ? icons.muted : icons.sound;
   ui.sound.setAttribute('aria-label', muted ? t('unmute') : t('mute'));
 });
-ui.observe.addEventListener('click', () => { ui.complete.hidden = true; });
+ui.observe.addEventListener('click', startSurvey);
+ui.next.addEventListener('click', () => {
+  const nextChapter = CHAPTERS[chapter.number];
+  if (!nextChapter) return;
+  const url = new URL(location.href);
+  url.searchParams.set('chapter', nextChapter.id);
+  location.assign(url);
+});
 ui.restart.addEventListener('click', () => {
+  if (surveyActive) {
+    location.reload();
+    return;
+  }
   game.goTo(0.02);
   completed = false;
-  resetFirstClue();
+  resetInvestigation();
   previousLandmark = -1;
   startedAt = performance.now();
   ui.complete.hidden = true;
   ui.hud.classList.remove('is-complete');
 });
+
+if (/(^|[#&])manual(&|$)/.test(location.hash)) {
+  window.__expeditionQa = {
+    completeChapter() {
+      investigation.trackers.forEach((tracker) => tracker.reset(true));
+      finishJourney();
+    },
+    startSurvey,
+    state: () => ({
+      chapter: chapter.id, surveyActive, completed,
+      recorded: investigation.recordedIds(), objective: objective.id,
+    }),
+  };
+}
 
 addEventListener('beforeunload', () => {
   cancelAnimationFrame(hudRaf);
@@ -587,6 +721,7 @@ addEventListener('beforeunload', () => {
   clearTimeout(clueRevealTimer);
   cancelGhostDemo();
   game?.dispose();
+  progressStore.flush();
 });
 
 function bootWhenVisible() {

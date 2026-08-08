@@ -120,6 +120,7 @@
   }
 </style>
 <script src="https://images.aiwaves.tech/alteru/guest-shell.js" defer></script>
+<script src="./aigram-bridge.js"></script>
 </head>
 <body>
 <main id="shell">
@@ -129,7 +130,9 @@
     <div class="jt-sleeping__content">
       <p class="jt-sleeping__eyebrow">A PROCEDURAL EXPEDITION</p>
       <h1 id="sleeping-title">JUNGLE<br>TRAIL</h1>
+      <p id="chapter-heading" class="jt-sleeping__chapter"></p>
       <p id="sleeping-copy" class="jt-sleeping__copy"></p>
+      <nav id="chapter-nav" class="jt-chapter-nav" aria-label="Expedition chapters"></nav>
       <button id="start-button" class="jt-button jt-button--primary" type="button"></button>
       <p id="build-status" class="jt-sleeping__status" role="status" aria-live="polite"></p>
     </div>
@@ -190,6 +193,7 @@
       <p class="jt-panel__eyebrow">JUNGLE TRAIL</p>
       <h2 id="pause-title"></h2>
       <button id="resume-button" class="jt-button jt-button--primary" type="button"></button>
+      <button id="mode-button" class="jt-button" type="button"></button>
       <button id="trail-button" class="jt-button" type="button"></button>
     </div>
   </section>
@@ -198,9 +202,12 @@
     <div class="jt-complete__content">
       <p class="jt-panel__eyebrow">JOURNEY COMPLETE</p>
       <h2 id="complete-title"></h2>
+      <p id="complete-conclusion" class="jt-complete__conclusion"></p>
       <p id="complete-time"></p>
+      <p id="complete-stats" class="jt-complete__stats" hidden></p>
       <div class="jt-complete__actions">
         <button id="observe-button" class="jt-button jt-button--primary" type="button"></button>
+        <button id="next-button" class="jt-button" type="button"></button>
         <button id="restart-button" class="jt-button" type="button"></button>
       </div>
     </div>

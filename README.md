@@ -6,11 +6,13 @@
 > Baseline revision: `753fb347328ce49963d8ae96124d5224f980bf63`
 > License: MIT. This adaptation preserves the original copyright and license.
 
-This branch keeps the upstream procedural world and adds a Vite build,
+This adaptation keeps the upstream procedural world and adds a Vite build,
 visibility-gated WebGL startup, a one-shot live scene preview that freezes its
 render loop until player takeover, mobile touch controls, portrait composition,
 lifecycle suspension, mobile vegetation/texture tiers, bilingual interface
-copy, and a self-paced waterfall completion state. The upstream author is the
+copy, four generated expedition routes, three evidence observations per chapter,
+personal survey challenges, local/cloud progress, and restrained ancient-alloy
+landmarks. The upstream author is the
 creator of the original work and is not presented as an AlterU player identity.
 
 A first-person walk down a winding jungle trail into overgrown stone ruins with a
@@ -30,7 +32,7 @@ Original live demo: **https://starknightt.github.io/jungle-trail/**
 - [Visual system](doc/visual.md)
 - [Technical map](doc/technical.md)
 - [Technical and visual retrospective](doc/retrospective.md)
-- [Gameplay proposal (draft)](doc/gameplay-plan.md)
+- [Gameplay plan](doc/gameplay-plan.md)
 
 ## Running it locally
 
@@ -110,10 +112,10 @@ between runs on a single figure is about 0.03, which is why the isolated pass
 timings are quoted rather than a frame-level difference — a quarter of a
 millisecond does not show up reliably against a 9 ms frame that varies by one.
 
-Every tier runs every effect. Defocus and the shutter were `high` and `ultra`
-only in the first version, which meant half the quality ladder was shipping a
-look nobody had reviewed; measured, six defocus taps cost 0.05 ms, and the tiers
-now scale the sampling of each effect rather than its presence.
+The mobile `low` tier now deliberately disables defocus and shutter integration:
+they cost GPU time and, more importantly, the blur delayed visual confirmation
+of touch camera movement. Medium/high/ultra use 4/8/12 motion taps with restrained
+`0.16/0.28/0.40` shutter fractions; bloom and defocus scale independently.
 
 The pool's planar reflection is the one pass that is not free: it is a second
 submission of the whole clearing and it costs about 1.4 ms of a falls-facing
