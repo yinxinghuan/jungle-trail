@@ -26,6 +26,7 @@
 - `public/poster.png`：1024×1024 正式英文 raster 海报。
 - `_qa/capture.mjs`、`_qa/ui/`：移动端状态截图脚本与首轮/复验证据。
 - `_production/poster-source.md`：正式海报提示词、来源、平台 transit 失败和双尺寸检查记录。
+- `doc/retrospective.md`：本次源码改造、场景化首屏、性能、视觉 QA、失败案例与跨项目复用合同。
 
 ## 3. 核心模块
 

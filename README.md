@@ -6,11 +6,12 @@
 > Baseline revision: `753fb347328ce49963d8ae96124d5224f980bf63`
 > License: MIT. This adaptation preserves the original copyright and license.
 
-This branch keeps the upstream procedural world and adds a Vite build, deferred
-WebGL startup, mobile touch controls, portrait composition, lifecycle suspension,
-mobile vegetation/texture tiers, bilingual interface copy, and a self-paced
-waterfall completion state. The upstream author is the creator of the original
-work and is not presented as an AlterU player identity.
+This branch keeps the upstream procedural world and adds a Vite build,
+visibility-gated WebGL startup, a one-shot live scene preview that freezes its
+render loop until player takeover, mobile touch controls, portrait composition,
+lifecycle suspension, mobile vegetation/texture tiers, bilingual interface
+copy, and a self-paced waterfall completion state. The upstream author is the
+creator of the original work and is not presented as an AlterU player identity.
 
 A first-person walk down a winding jungle trail into overgrown stone ruins with a
 waterfall, built in Three.js with zero external art assets. Every texture, mesh
@@ -22,6 +23,13 @@ are computed at load time.
 Original live demo: **https://starknightt.github.io/jungle-trail/**
 
 ![Trailhead under closed canopy](media/01-trailhead.jpg)
+
+## Adaptation documentation
+
+- [Requirements](doc/requirements.md)
+- [Visual system](doc/visual.md)
+- [Technical map](doc/technical.md)
+- [Technical and visual retrospective](doc/retrospective.md)
 
 ## Running it locally
 
