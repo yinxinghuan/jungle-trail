@@ -148,8 +148,8 @@ export class Trail {
      * trail in rainforest is roughly a metre across at the trailhead and less
      * than that once the understory starts closing in — anything wider stops
      * reading as a path worn by walking and starts reading as a road. */
-    let w = 1.00;
-    w -= smoothstep(0.18, 0.55, t) * 0.42;          // narrowing
+    let w = 1.12;
+    w -= smoothstep(0.18, 0.55, t) * 0.34;          // narrowing, still readable on a phone
     w += smoothstep(0.62, 0.80, t) * 0.45;          // opening toward the light
     w += smoothstep(0.80, 0.95, t) * 3.1;           // clearing floor
     return w;

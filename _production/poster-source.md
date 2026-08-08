@@ -8,6 +8,7 @@
 - Transit result: `{"error":"Generation failed: code=100 "}`
 - Approved fallback: built-in OpenAI raster image generation (`imagegen` skill)
 - Source output: `/Users/yin/.codex/generated_images/019fdd9d-a5bb-7d03-9a1a-9ef3b2e3bc26/exec-a8253914-13f2-48c3-998b-80d159c4bda5.png`
+- Delivery normalization: source output was downsampled once to exact 1024×1024 PNG; no crop, repaint, UI overlay or content change.
 
 ## Final prompt
 

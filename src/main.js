@@ -13,6 +13,7 @@ const ui = {
   mission: $('mission'), observation: $('observation'), observationProgress: $('observation-progress'),
   observationLabel: $('observation-label'), clueReveal: $('clue-reveal'),
   clueRevealKicker: $('clue-reveal-kicker'), clueRevealCopy: $('clue-reveal-copy'),
+  routeCue: $('route-cue'),
   pause: $('pause-button'), look: $('look-zone'), ghost: $('ghost-gesture'), move: $('move-control'), knob: $('stick-knob'),
   sprint: $('sprint-button'), jump: $('jump-button'), hint: $('hint'),
   pausePanel: $('pause-panel'), pauseTitle: $('pause-title'), resume: $('resume-button'), trail: $('trail-button'),
@@ -74,7 +75,12 @@ let clueProgress = 0;
 let clueComplete = false;
 let clueAlignedAt = 0;
 let clueLastAlignedAt = 0;
+let clueAnnounced = false;
+let clueNearbyAt = 0;
+let clueHelped = false;
+let offTrailAt = 0;
 
+const CLUE_PREVIEW_RANGE = 34;
 const CLUE_RANGE = 18;
 const CLUE_ALIGN_RADIUS = 0.09;
 const CLUE_BREAK_RADIUS = 0.14;
@@ -130,6 +136,8 @@ function completeFirstClue() {
   ui.hud.dataset.clueState = 'recorded';
   ui.observation.hidden = true;
   ui.clueProgress.classList.add('is-recorded');
+  ui.clueProgress.classList.remove('is-signaled');
+  ui.observation.classList.remove('is-helped');
   ui.clueCount.textContent = t('clueCount', { n: 1 });
   ui.clueReveal.hidden = false;
   clearTimeout(clueRevealTimer);
@@ -145,18 +153,31 @@ function updateFirstClue(now, dt) {
   }
   const anchor = game.ruins?.observationAnchors?.firstStone;
   const probe = game.observationProbe(anchor);
+  if (!clueAnnounced && probe.distance <= CLUE_PREVIEW_RANGE) {
+    clueAnnounced = true;
+    ui.clueProgress.classList.add('is-signaled');
+    ui.mission.textContent = t('clueAhead');
+    ui.mission.hidden = false;
+    clearTimeout(missionTimer);
+    missionTimer = setTimeout(() => { ui.mission.hidden = true; }, 3200);
+    try { game.ambience?.playClueHint?.(anchor); } catch (_) { /* audio is non-fatal */ }
+  }
   const nearby = probe.distance <= CLUE_RANGE;
   ui.hud.dataset.clueDistance = Number.isFinite(probe.distance) ? probe.distance.toFixed(2) : '';
   ui.hud.dataset.clueCenterDistance = Number.isFinite(probe.centerDistance)
     ? probe.centerDistance.toFixed(3) : '';
   if (!nearby) {
-    ui.hud.dataset.clueState = 'roaming';
+    ui.hud.dataset.clueState = clueAnnounced ? 'signaled' : 'roaming';
     ui.observation.hidden = true;
+    ui.observation.classList.remove('is-helped');
+    clueNearbyAt = 0;
     clueAlignedAt = 0;
     clueLastAlignedAt = 0;
     if (clueProgress) setObservationProgress(0);
     return;
   }
+
+  if (!clueNearbyAt) clueNearbyAt = now;
 
   if (hintStage !== 'done') {
     cancelGhostDemo();
@@ -181,10 +202,16 @@ function updateFirstClue(now, dt) {
     if (!inGrace) setObservationProgress(clueProgress - dt * 0.85 / CLUE_HOLD_SECONDS);
   }
 
+  if (!tracking && !clueHelped && now - clueNearbyAt >= 9000) {
+    clueHelped = true;
+    try { game.ambience?.playClueHint?.(anchor); } catch (_) { /* audio is non-fatal */ }
+  }
+
   ui.observation.classList.toggle('is-aligned', !!tracking);
+  ui.observation.classList.toggle('is-helped', clueHelped && !tracking);
   ui.observationLabel.textContent = sprinting
     ? t('clueSprint')
-    : tracking ? t('clueFocus') : t('clueNearby');
+    : tracking ? t('clueFocus') : clueHelped ? t('clueSearch') : t('clueNearby');
   ui.hud.dataset.clueState = tracking ? 'aligned' : 'nearby';
   if (clueProgress >= 1) completeFirstClue();
 }
@@ -193,12 +220,37 @@ function resetFirstClue() {
   clueComplete = false;
   clueAlignedAt = 0;
   clueLastAlignedAt = 0;
+  clueAnnounced = false;
+  clueNearbyAt = 0;
+  clueHelped = false;
   clearTimeout(clueRevealTimer);
   ui.clueReveal.hidden = true;
   ui.clueProgress.classList.remove('is-recorded');
+  ui.clueProgress.classList.remove('is-signaled');
+  ui.observation.classList.remove('is-helped');
   ui.clueCount.textContent = t('clueCount', { n: 0 });
   ui.hud.dataset.clueState = 'roaming';
   setObservationProgress(0);
+}
+
+function updateRouteCue(now) {
+  if (!game || completed || userPaused || docHidden || offscreen
+      || !ui.observation.hidden || !ui.hint.hidden || !ui.mission.hidden) {
+    ui.routeCue.hidden = true;
+    return;
+  }
+  const offset = game.walker.trailOffset;
+  ui.hud.dataset.trailDistance = offset.dist.toFixed(2);
+  if (offset.dist > 2.4) {
+    if (!offTrailAt) offTrailAt = now;
+    if (now - offTrailAt >= 1200) {
+      ui.routeCue.textContent = t(offset.viewSide < 0 ? 'trailLeft' : 'trailRight');
+      ui.routeCue.hidden = false;
+    }
+  } else if (offset.dist < 1.5) {
+    offTrailAt = 0;
+    ui.routeCue.hidden = true;
+  }
 }
 
 function updateHud(now = performance.now()) {
@@ -215,6 +267,7 @@ function updateHud(now = performance.now()) {
     requestAnimationFrame(() => ui.landmark.classList.add('is-revealing'));
   }
   updateFirstClue(now, dt);
+  updateRouteCue(now);
   if (!completed && trailT >= 0.955) finishJourney();
   hudRaf = requestAnimationFrame(updateHud);
 }
@@ -232,6 +285,8 @@ function finishJourney() {
 function returnToTrail() {
   if (!game) return;
   game.goTo(game.walker.trailT);
+  offTrailAt = 0;
+  ui.routeCue.hidden = true;
   userPaused = false;
   ui.pausePanel.hidden = true;
   applyPause();
@@ -453,6 +508,7 @@ async function prepareScene() {
     const { startGame } = await import('./app.js');
     ui.status.textContent = t('firstFrame');
     game = startGame(ui.canvas, { autoBegin: false });
+    game.walker.setTrailAssist(coarseInput ? 0.38 : 0);
     game.ambience?.setMuted?.(muted);
     attachJoystick();
     attachLook();

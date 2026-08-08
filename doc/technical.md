@@ -26,6 +26,8 @@
 - `public/poster.png`：1024×1024 正式英文 raster 海报。
 - `_qa/capture.mjs`、`_qa/ui/`：移动端状态截图脚本与首轮/复验证据。
 - `_qa/capture-clue.mjs`：第一处观察的附近、对准、完成、中文窄屏与 reduced-motion 自动断言和截图。
+- `_qa/capture-navigation.mjs`：路径扶正、34 m 线索预告和离路恢复提示的数值断言与构图证据。
+- `_qa/playthrough-input.mjs`：不调用传送/自动行走 API，使用真实触控事件分别验证摇杆、冲刺和右侧转镜头。
 - `_production/poster-source.md`：正式海报提示词、来源、平台 transit 失败和双尺寸检查记录。
 - `doc/retrospective.md`：本次源码改造、场景化首屏、性能、视觉 QA、失败案例与跨项目复用合同。
 
@@ -45,13 +47,19 @@
 
 ### 输入与碰撞
 
-`Walker` 统一键盘和模拟摇杆输入；触控向量保留幅度，移动速度随摇杆距离变化。右侧拖动调用 `lookBy()`，俯仰限制为 ±1.35 rad。跳跃只接受落地边缘触发，冲刺为按住状态。碰撞使用程序化高度场与网格化圆/胶囊/盒代理。
+`Walker` 统一键盘和模拟摇杆输入；触控向量保留幅度，移动速度随摇杆距离变化。移动端在玩家明确向前（纵向至少 `45%`、横向小于 `45%`）且距离路径中心不超过 `7.5 m` 时，把实际移动方向最多混合 `50%` 到前方路径切线；横推、后退、腾空或反向行走立即退出。该逻辑不旋转相机，也不影响桌面输入。右侧拖动调用 `lookBy()`，俯仰限制为 ±1.35 rad。跳跃只接受落地边缘触发，冲刺为按住状态。碰撞使用程序化高度场与网格化圆/胶囊/盒代理。
+
+`Walker.trailOffset` 暴露路径距离、侧向和相对镜头方向。`src/main.js` 在离路超过 `2.4 m` 持续 `1.2 s` 后显示一次轻量“深色路径在左/右”，回到 `1.5 m` 内即隐藏；观察、任务或教学提示出现时，偏航提示让位，避免多个主指令叠加。
+
+### 路径与首个线索视线
+
+`Trail.widthAt()` 把主要泥路半宽提高到约 `1.12 m`，地形 shader 使用更连续的边缘函数并把泥土反照率压到原来的 `86%`，使路在高亮叶片和阴影下仍有连续轮廓。`Vegetation` 在生成时建立从路径 `t=0.318` 到首块石头的视线段：高于 `1.2 m` 的灌木、棕榈、阔叶、幼树和藤类不会落在目标 `2.4 m` 或该段 `1.2 m` 的清障范围内；低矮地被仍保留，所以画面不会变成空走廊。
 
 ### 第一处观察垂直切片
 
 `Ruins.observationAnchors.firstStone` 在生成 `t=0.356` 的直立加工石块时同步记录其语义世界坐标，避免 UI 重复猜测位置或遍历合并后的遗迹网格。`Game.observationProbe()` 使用可复用 `Vector3` 把该点投影到屏幕短边归一化坐标，并返回可见性、距离与中心偏差，不产生逐帧垃圾。
 
-`src/main.js` 只在玩家进入 `18 m` 范围后启用判定：首次进入短边 `9%` 中心半径并通过 `120 ms` 防抖后，连续累积 `1.1 s`；已经开始观察时允许在 `14%` 半径内继续，并在完全偏离后保留 `0.35 s` 宽限。冲刺、暂停、隐藏、离屏和入口预览均不累积。成功状态只保存在本次页面会话，更新 `线索 1/1`、显示非模态结论、触发轻触觉，并在音频图已准备好时调用 `Ambience.playDiscovery()` 播放两层短促正弦石质共鸣。
+`src/main.js` 在玩家距离目标 `34 m` 时先触发一次非阻塞预告和 `Ambience.playClueHint()` 方位声；进入 `18 m` 后启用判定：首次进入短边 `9%` 中心半径并通过 `120 ms` 防抖后，连续累积 `1.1 s`；已经开始观察时允许在 `14%` 半径内继续，并在完全偏离后保留 `0.35 s` 宽限。若进入近距区域 `9 s` 仍未对准，观察环与文案只增强一次，不自动完成。冲刺、暂停、隐藏、离屏和入口预览均不累积。成功状态只保存在本次页面会话，更新 `线索 1/1`、显示非模态结论、触发轻触觉，并在音频图已准备好时调用 `Ambience.playDiscovery()` 播放两层短促正弦石质共鸣。
 
 ### 响应式布局
 
@@ -59,7 +67,7 @@ WebGL 画布随窗口尺寸更新相机和渲染目标。DOM HUD 直接使用安
 
 ### 音频
 
-`Ambience` 在玩家后续手势中解锁 AudioContext，并由 Worker 生成音库。脚步、落地、鸟虫、风、溪流与瀑布依据世界位置和步态混合。`setMuted()` 平滑调整 master gain；音频失败不阻塞游戏。
+`Ambience` 在玩家后续手势中解锁 AudioContext，并由 Worker 生成音库。脚步、落地、鸟虫、风、溪流与瀑布依据世界位置和步态混合。线索预告使用短促双正弦声和 `PannerNode` 指向首块石头，不加载外部音频。`setMuted()` 平滑调整 master gain；音频失败不阻塞游戏。
 
 ### 多语言与平台
 
@@ -69,7 +77,8 @@ WebGL 画布随窗口尺寸更新相机和渲染目标。DOM HUD 直接使用安
 
 - 调整行走、跳跃、相机或触控：修改 `src/player/controller.js` 与 `src/main.js`。
 - 调整地标、完成阈值和旅程 UI：修改 `landmarkFor()`、`finishJourney()` 及 `src/i18n.js`。
-- 调整观察范围、中心半径、稳定时长和回退：修改 `src/main.js` 的 `CLUE_*` 常量；更换目标主体时修改 `src/world/ruins.js` 的 `observationAnchors`，不要在 HUD 中硬编码世界坐标。
+- 调整观察范围、预告范围、中心半径、稳定时长和回退：修改 `src/main.js` 的 `CLUE_*` 常量；更换目标主体时修改 `src/world/ruins.js` 的 `observationAnchors`，不要在 HUD 中硬编码世界坐标。
+- 调整移动端扶正与离路提示：修改 `src/player/controller.js` 的 `setTrailAssist()` 合同和 `src/main.js` 的 `updateRouteCue()`；保持相机不被自动旋转。
 - 扩展第二、第三处观察：沿用 `Game.observationProbe()` 与同一 UI 状态合同，为门址和瀑布分别增加语义 anchor；完成三章前不增加排行榜或存档。
 - 调整移动性能：修改 `src/app.js` 的移动画质参数、`src/world/vegetation.js` 的 `densityScale/atlasPx`、`src/render/atmosphere.js` 与 `src/world/water.js` 的 tier 表。
 - 调整场景和路径：修改 `src/world/path.js`、`terrain.js`、`vegetation.js`、`ruins.js` 或 `water.js`；改动后必须重新做上游基线对照。

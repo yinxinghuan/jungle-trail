@@ -88,11 +88,14 @@ export class Walker {
 
     this.keys = Object.create(null);
     this.touch = { x: 0, z: 0, jog: false };
+    this.trailAssistStrength = 0;
     this.enabled = false;
     this.auto = null;          // { t } — scripted walk, used by the capture harness
     this.noise = new Noise2D(4242);
     this._time = 0;
     this._tmp = new THREE.Vector3();
+    this._trailPoint = new THREE.Vector3();
+    this._trailInfo = { dist: 0, side: 0, viewSide: 0, t: 0 };
     this._normal = new THREE.Vector3(0, 1, 0);
     this._q = {};
 
@@ -197,6 +200,12 @@ export class Walker {
     return this;
   }
 
+  /** Mobile-only steering support; zero keeps the original free movement. */
+  setTrailAssist(strength = 0) {
+    this.trailAssistStrength = clamp(Number(strength) || 0, 0, 0.5);
+    return this;
+  }
+
   get isSprinting() {
     return !!(this.touch.jog || this.keys.ShiftLeft || this.keys.ShiftRight);
   }
@@ -287,8 +296,38 @@ export class Walker {
      * quarter turn away, which is what made walking drift off the look
      * direction the further the player turned from the trailhead. */
     const cos = Math.cos(this.yaw), sin = Math.sin(this.yaw);
-    const wx = fx * cos + fz * sin;
-    const wz = -fx * sin + fz * cos;
+    let wx = fx * cos + fz * sin;
+    let wz = -fx * sin + fz * cos;
+
+    /* A thumb cannot steer and look with the precision of two desktop axes.
+     * When the mobile stick is clearly asking for "forward", blend the actual
+     * travel direction toward the authored trail ahead. The camera remains
+     * completely untouched, so looking at a stone never snaps the view, and
+     * a deliberate lateral push exits the assist immediately. */
+    if (this.trailAssistStrength > 0 && this.touch.z <= -0.45
+        && Math.abs(this.touch.x) < 0.45 && this.grounded) {
+      this.terrain.sampleField(this.pos.x, this.pos.z, this._q);
+      const ahead = this.trail.pointAt(Math.min(1, this._q.t + 0.018), this._trailPoint);
+      let guideX = ahead.x - this.pos.x;
+      let guideZ = ahead.z - this.pos.z;
+      const guideInv = 1 / Math.max(1e-5, Math.hypot(guideX, guideZ));
+      guideX *= guideInv;
+      guideZ *= guideInv;
+      const alignment = wx * guideX + wz * guideZ;
+      if (alignment > 0) {
+        const proximity = 1 - smoothstep(6.5, 7.5, this._q.dist);
+        const forward = smoothstep(0.45, 0.92, -this.touch.z);
+        const lateral = 1 - smoothstep(0.12, 0.45, Math.abs(this.touch.x));
+        const recovery = 0.12 * smoothstep(1.0, 3.2, this._q.dist);
+        const assist = Math.min(0.5, this.trailAssistStrength + recovery)
+          * proximity * forward * lateral;
+        wx = lerp(wx, guideX, assist);
+        wz = lerp(wz, guideZ, assist);
+        const inv = 1 / Math.max(1e-5, Math.hypot(wx, wz));
+        wx *= inv;
+        wz *= inv;
+      }
+    }
 
     /* A sidestep and a blind backward step are deliberately shorter than a
      * forward stride. The input was normalised first, so adding a second key
@@ -565,6 +604,20 @@ export class Walker {
   get trailT() {
     this.terrain.sampleField(this.pos.x, this.pos.z, this._q);
     return this._q.t;
+  }
+
+  /** Nearest-trail data plus which side of the current view the trail lies. */
+  get trailOffset() {
+    this.terrain.sampleField(this.pos.x, this.pos.z, this._q);
+    const p = this.trail.pointAt(this._q.t, this._trailPoint);
+    const dx = p.x - this.pos.x;
+    const dz = p.z - this.pos.z;
+    const cos = Math.cos(this.yaw), sin = Math.sin(this.yaw);
+    this._trailInfo.dist = this._q.dist;
+    this._trailInfo.side = this._q.side;
+    this._trailInfo.viewSide = dx * cos - dz * sin;
+    this._trailInfo.t = this._q.t;
+    return this._trailInfo;
   }
 
   dispose() { if (this._detach) this._detach(); }

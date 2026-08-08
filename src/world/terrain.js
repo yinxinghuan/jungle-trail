@@ -322,9 +322,9 @@ export class Terrain {
    */
   evalMud(x, z, q) {
     const hw = this.trail.widthAt(q.t);
-    const ragged = 0.42 * this.nb.fbm(x * 0.42, z * 0.42, 3, 0.5)
-                 + 0.16 * this.n.fbm(x * 1.30, z * 1.30, 2, 0.5);
-    return 1 - smoothstep(hw * 0.55, hw + 1.1, q.dist + ragged);
+    const ragged = 0.34 * this.nb.fbm(x * 0.42, z * 0.42, 3, 0.5)
+                 + 0.12 * this.n.fbm(x * 1.30, z * 1.30, 2, 0.5);
+    return 1 - smoothstep(hw * 0.68, hw + 1.28, q.dist + ragged);
   }
 
   /**
@@ -844,7 +844,12 @@ export function makeTerrainMaterial(renderer) {
            // some patches, older grey material in others.
            litA *= mix(vec3(0.74, 0.82, 0.70), vec3(1.20, 1.06, 0.86), gMid.z);
 
-           vec3 alb = biplanar(tDirtA, S_DIRT) * gW.x
+           /* The walked line must survive phone-size composition. Compact wet
+            * soil is measurably darker than the dry litter beside it; keeping
+            * that difference in albedo lets the bend read without a decal or
+            * an artificial edge highlight. */
+           vec3 dirtA = biplanar(tDirtA, S_DIRT) * 0.86;
+           vec3 alb = dirtA * gW.x
                     + litA * gW.y
                     + biplanar(tRockA, gRockS) * gW.z;
 

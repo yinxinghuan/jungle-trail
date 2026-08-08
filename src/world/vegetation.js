@@ -148,6 +148,19 @@ const BANK_CLEAR = {
   sapling: 0.95, vine: 1.0, fern: 0.40, litterMat: 0.55, log: 0.7,
 };
 
+const CLUE_CLEAR_SPECIES = new Set([
+  'thicket', 'palm', 'broadleaf', 'sapling', 'vine', 'deadVine',
+]);
+
+function distanceToSegment2(x, z, a, b) {
+  const vx = b.x - a.x, vz = b.z - a.z;
+  const wx = x - a.x, wz = z - a.z;
+  const d = vx * vx + vz * vz;
+  const t = d > 1e-6 ? Math.max(0, Math.min(1, (wx * vx + wz * vz) / d)) : 0;
+  const dx = x - (a.x + vx * t), dz = z - (a.z + vz * t);
+  return dx * dx + dz * dz;
+}
+
 /* Ragged, and stable across builds. A margin of constant width reads as mown,
  * and using the scatter's own rng for the jitter would make the whole forest
  * depend on the brook — this is the position hash the scatter grids already
@@ -605,6 +618,11 @@ export class Vegetation {
     this.cells = [];
     this.densityScale = Math.max(0.35, Math.min(1, densityScale));
     this.atlasPx = Math.max(512, Math.min(ATLAS_PX, atlasPx));
+    const clue = ruins?.observationAnchors?.firstStone;
+    this.clueSightline = clue ? {
+      start: trail.pointAt(0.318, new THREE.Vector3()),
+      end: clue.clone(),
+    } : null;
 
     this.uniforms = {
       uTime: { value: 0 },
@@ -852,6 +870,14 @@ export class Vegetation {
         if (px < BOUNDS.x0 || px > BOUNDS.x1 || pz > BOUNDS.z0 || pz < BOUNDS.z1) continue;
         this.trail.nearest(px, pz, q);
         if (q.dist > maxDist) continue;
+        /* Preserve one authored glimpse of the first worked stone. Low ferns,
+         * roots and litter remain, but eye-height leaves may not form a solid
+         * curtain across the only teaching target in the slice. */
+        if (this.clueSightline && CLUE_CLEAR_SPECIES.has(name)) {
+          const { start, end } = this.clueSightline;
+          const targetD2 = (px - end.x) * (px - end.x) + (pz - end.z) * (pz - end.z);
+          if (targetD2 < 2.4 * 2.4 || distanceToSegment2(px, pz, start, end) < 1.2 * 1.2) continue;
+        }
         let y = t.height(px, pz);
         /* Nothing here is an emergent aquatic, so anything with its crown
          * under the surface is refused outright. The tolerance is generous

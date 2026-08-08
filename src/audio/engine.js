@@ -590,6 +590,34 @@ export class Ambience {
     }
   }
 
+  /** One quiet positional knock that previews the first worked stone. */
+  playClueHint(position) {
+    if (!this.ready || this.muted || !this.ctx || !this.master || !position) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const pan = ctx.createPanner();
+    pan.panningModel = 'equalpower';
+    pan.distanceModel = 'inverse';
+    pan.refDistance = 4;
+    pan.maxDistance = 55;
+    pan.rolloffFactor = 0.65;
+    this._placePanner(pan, position);
+    pan.connect(this.master);
+    for (const [frequency, gain, delay] of [[218, 0.052, 0], [146, 0.034, 0.055]]) {
+      const osc = ctx.createOscillator();
+      const amp = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(frequency, now + delay);
+      osc.frequency.exponentialRampToValueAtTime(frequency * 0.68, now + delay + 0.34);
+      amp.gain.setValueAtTime(0.0001, now + delay);
+      amp.gain.exponentialRampToValueAtTime(gain, now + delay + 0.018);
+      amp.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.34);
+      osc.connect(amp); amp.connect(pan);
+      osc.start(now + delay); osc.stop(now + delay + 0.36);
+    }
+    setTimeout(() => { try { pan.disconnect(); } catch (_) { /* already released */ } }, 520);
+  }
+
   setPaused(paused) {
     if (!this.ready) return;
     if (paused && this.ctx.state === 'running' && this.ctx.suspend) this.ctx.suspend();

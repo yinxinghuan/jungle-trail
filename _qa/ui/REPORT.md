@@ -10,6 +10,9 @@
 | First trace nearby | `platform-layout-clue-nearby-390x844.png` | — | Pass; target range active, observation not auto-completed |
 | First trace aligned | `platform-layout-clue-aligned-390x844.png` | `platform-layout-clue-aligned-reduced-motion-320x568.png` | Pass; partial progress between 0 and 1 asserted |
 | First trace recorded | `platform-layout-clue-recorded-390x844.png` | `platform-layout-clue-recorded-reduced-motion-320x568.png` | Pass; `recorded`, progress 1, count 1/1 asserted |
+| First trace advance signal | `platform-layout-clue-signal-390x844.png` | — | Pass; one-shot 34 m preview and positional cue asserted |
+| Off-trail recovery | `platform-layout-route-recovery-390x844.png` | — | Pass; 3.2 m lateral displacement yields correct view-relative direction |
+| Natural touch segment | `platform-layout-natural-input-segment-390x844.png` | — | Pass; real touch events advance, engage sprint and rotate camera without teleport/auto-walk |
 | Ghost look demo | `platform-layout-ghost-look-390x844.png` | — | Pass; finger and real camera motion visible together |
 | Pause | `platform-layout-pause-390x844.png` | Panel width is fluid with 18 px side inset | Pass |
 | Completion first pass | `platform-layout-complete-first-pass-390x844.png` | `platform-layout-complete-first-pass-320x568.png` | P1 found |
@@ -70,20 +73,39 @@
 - Impact: the functional assertion passed but the next evidence image missed the real transient copy.
 - Fix: the harness first asserts the genuine recorded state and `1/1`, then replays the already implemented reveal DOM solely for the composition screenshot; product timing remains unchanged.
 
+### P1 — Trail contour disappeared under bright leaves and deep shadow
+
+- Evidence: the earlier gameplay and first-clue captures made the route readable only in isolated sun patches.
+- Impact: mobile players could mistake foliage gaps for the route and spend attention correcting locomotion instead of investigating.
+- Fix: widened the authored mud band, made its shader edge more continuous, lowered dirt albedo to `86%`, and added a coarse-input-only direction blend that never rotates the camera.
+- Recheck: the deterministic steering probe stayed within `1.821 m` of the trail while progressing from `t=0.10` to `t=0.119`; the real touch segment also remained on the route.
+
+### P1 — First clue arrived without enough advance framing
+
+- Observation: the observation ring appeared only at `18 m`, leaving no transition from free walking to investigation.
+- Impact: the first objective felt like a UI event instead of something noticed in the forest.
+- Fix: at `34 m`, one restrained sentence and a positional stone sound announce that one face does not match; vegetation now preserves a low-density sightline toward the target. At close range, a single delayed enhancement helps only after `9 s` without alignment.
+- Recheck: the harness asserts a `25.53 m` signal, then separately completes the original gaze interaction. The signal, observation, tutorial and route-recovery prompts are mutually exclusive.
+
+### P2 — Full three-finger automation was not a valid proxy for a person
+
+- Observation: Chromium changes pointer capture when a synthetic third touch is added to held joystick and sprint touches, producing misleading route stalls.
+- Decision: no full-playthrough pass is claimed from that setup. Natural input evidence is scoped to independently verifying the real joystick, sprint and look handlers; route containment and clue completion remain separate deterministic runtime tests.
+
 ## Scores after recheck
 
 | Category | Score (1–5) | Notes |
 |---|---:|---|
 | Hierarchy | 5 | Scene and trail dominate; UI remains quiet. |
 | Coherence | 5 | Forest-derived color, line and material language throughout. |
-| Readability | 4 | Labels and actions remain clear at both sizes. |
-| Game feel | 4 | The observation has immediate aim/progress/completion feedback; player delight still needs online testing before a 5. |
+| Readability | 5 | Labels, actions and the darker continuous trail remain clear at both sizes. |
+| Game feel | 4 | Movement, recovery, advance signal and observation feedback are verified; player delight still needs online testing before a 5. |
 | Asset quality | 5 | Original procedural engine retained; poster is separate raster key art. |
 | Responsive UX | 5 | 390×844 and 320×568 entry states pass in English/Chinese, including reduced-motion. |
 | Polish | 5 | Live entry, loading, frozen wait, handoff, pause, completion and recovery share one system. |
 
-Average: **4.7 / 5**. No category is below 3.
+Average: **4.9 / 5**. No category is below 3.
 
 ## Release note
 
-- Local external-guest evidence confirms the managed visitor CTA remains usable. After deployment, both live bundles must contain `clueCenterDistance` or the first-trace copy before the release is claimed complete.
+- Local external-guest evidence confirms the managed visitor CTA remains usable. After deployment, both live bundles must contain the first-trace advance copy before the release is claimed complete.
