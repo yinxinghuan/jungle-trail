@@ -39,11 +39,13 @@
 
 ### 主循环与生命周期
 
-`Game.begin()` 使用 RAF 和帧率上限驱动 `step/render`，`Game.stop()` 取消入口待机循环；移动端默认 30 fps/low，桌面默认 60 fps/high。连续 1.6 秒超预算时只下降一个画质级别。`visibilitychange` 与 `IntersectionObserver` 合并为暂停状态，隐藏平台预载不会创建 WebGL，已运行场景在不可见时停止场景更新并挂起音频。
+`Game.begin()` 使用 RAF 和帧率上限驱动 `step/render`，`Game.stop()` 取消入口待机循环；移动端默认从 60 fps/low 开始，桌面默认 60 fps/high。移动端 low 档连续 1.6 秒仍低于约 39 fps 时把帧率目标回退到 30 fps；显式 `#fps=` 调试覆盖不会被自适应改写。`visibilitychange` 与 `IntersectionObserver` 合并为暂停状态，隐藏平台预载不会创建 WebGL，已运行场景在不可见时停止场景更新并挂起音频。
 
 ### 移动性能
 
 移动端保持相同种类、算法、种子与地标，但 `Vegetation` 使用 `densityScale: 0.62` 扩大抖动采样步长，将叶片图集从 2048² 降为 1024²、树皮图集从 1024² 降为 512²。最低后处理档关闭体积光步进、AO 和瀑布喷溅，仍保留核心材质、林冠光照、瀑布表面和颜色处理。
+
+`Grade` 的 low 档动态模糊由 8 taps / `1.0` 帧曝光降为 4 taps / `0.22` 帧曝光；medium 为 8 taps / `0.45` 帧，高与 ultra 保留原电影曝光。调整同时减少移动端全屏采样并缩短转镜后的视觉残留，不改变桌面 high 档基线。
 
 ### 输入与碰撞
 

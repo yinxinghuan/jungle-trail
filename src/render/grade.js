@@ -60,10 +60,10 @@ import { FS_VERT, DEPTH_GLSL, SSTEP } from '../gfx/glsl.js';
  * the answer, not whether the answer is there.
  */
 const TIER_GRADE = {
-  low: { bloom: 5, dof: 6, motion: 8 },
-  medium: { bloom: 6, dof: 8, motion: 12 },
-  high: { bloom: 8, dof: 12, motion: 20 },
-  ultra: { bloom: 8, dof: 16, motion: 28 },
+  low: { bloom: 5, dof: 6, motion: 4, shutter: 0.22 },
+  medium: { bloom: 6, dof: 8, motion: 8, shutter: 0.45 },
+  high: { bloom: 8, dof: 12, motion: 20, shutter: 1.0 },
+  ultra: { bloom: 8, dof: 16, motion: 28, shutter: 1.0 },
 };
 
 const MAX_DOF = 16;
@@ -968,7 +968,7 @@ export class Grade {
     this.focus = 5.5;
     this.maxNearPx = 16;
     this.maxFarPx = 2.6;
-    /* The exposure time, as a multiple of the frame interval.
+    /* The high-tier exposure time, as a multiple of the frame interval.
      *
      * The film convention is a hundred and eighty degrees — open for half the
      * interval — and at twenty-four frames that is a fiftieth of a second.
@@ -986,13 +986,19 @@ export class Grade {
      * exposure is a property of the camera being imitated. Measured on a
      * fifty-degree-per-second pan it comes to about thirteen pixels of travel,
      * which is what a degree of arc is at this field of view, which is what
-     * the real exposure would have integrated. */
-    this.shutter = 1.0;
+     * the real exposure would have integrated.
+     *
+     * Low and medium deliberately shorten that documentary exposure. On a
+     * touch camera, preserving the player's perceived stop point matters more
+     * than reproducing a physical shutter, and fewer taps also free mobile
+     * bandwidth for the higher response-rate target. */
+    this.shutter = TIER_GRADE[tier]?.shutter ?? 1.0;
   }
 
   setTier(tier) {
     if (!TIER_GRADE[tier]) return;
     this.tier = tier;
+    this.shutter = TIER_GRADE[tier].shutter;
     if (this._targets) this.setSize(this._targets.pw, this._targets.ph, true);
   }
 

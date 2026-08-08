@@ -13,6 +13,8 @@
 | First trace advance signal | `platform-layout-clue-signal-390x844.png` | — | Pass; one-shot 34 m preview and positional cue asserted |
 | Off-trail recovery | `platform-layout-route-recovery-390x844.png` | — | Pass; 3.2 m lateral displacement yields correct view-relative direction |
 | Natural touch segment | `platform-layout-natural-input-segment-390x844.png` | — | Pass; real touch events advance, engage sprint and rotate camera without teleport/auto-walk |
+| Reduced look blur | `platform-layout-look-motion-low-blur-390x844.png` | `platform-layout-look-motion-low-blur-320x568.png` | Pass; low tier is 4 taps / 0.22-frame shutter and path edges remain readable during drag |
+| Look settle | `platform-layout-look-settled-low-blur-390x844.png` | — | Pass; matched frame returns to a crisp stationary image after input release |
 | Ghost look demo | `platform-layout-ghost-look-390x844.png` | — | Pass; finger and real camera motion visible together |
 | Pause | `platform-layout-pause-390x844.png` | Panel width is fluid with 18 px side inset | Pass |
 | Completion first pass | `platform-layout-complete-first-pass-390x844.png` | `platform-layout-complete-first-pass-320x568.png` | P1 found |
@@ -92,6 +94,13 @@
 - Observation: Chromium changes pointer capture when a synthetic third touch is added to held joystick and sprint touches, producing misleading route stalls.
 - Decision: no full-playthrough pass is claimed from that setup. Natural input evidence is scoped to independently verifying the real joystick, sprint and look handlers; route containment and clue completion remain separate deterministic runtime tests.
 
+### P1 — Mobile frame cap and shutter made looking feel delayed
+
+- Evidence: user online test plus the earlier motion captures, where a 30 fps hard cap was combined with 8 motion samples and a full-frame shutter.
+- Impact: camera rotation looked like it continued after the thumb moved, reducing confidence when following the trail or centering the stone.
+- Fix: mobile now starts with a 60 fps target; low tier uses 4 motion samples and a `0.22`-frame shutter. If low tier remains below roughly 39 fps for `1.6 s`, the renderer falls back to 30 fps instead of repeatedly missing a 60 fps budget.
+- Recheck: runtime assertions report `tier=low`, `frameCap=60`, `shutter=0.22`, `motionTaps=4`; a deterministic slow-device probe falls back to `30`. Matched 390×844 moving/settled and 320×568 moving frames retain readable vegetation and trail edges.
+
 ## Scores after recheck
 
 | Category | Score (1–5) | Notes |
@@ -99,7 +108,7 @@
 | Hierarchy | 5 | Scene and trail dominate; UI remains quiet. |
 | Coherence | 5 | Forest-derived color, line and material language throughout. |
 | Readability | 5 | Labels, actions and the darker continuous trail remain clear at both sizes. |
-| Game feel | 4 | Movement, recovery, advance signal and observation feedback are verified; player delight still needs online testing before a 5. |
+| Game feel | 4 | Input response is materially sharper and fallback is verified; final delight rating still depends on the next online device test. |
 | Asset quality | 5 | Original procedural engine retained; poster is separate raster key art. |
 | Responsive UX | 5 | 390×844 and 320×568 entry states pass in English/Chinese, including reduced-motion. |
 | Polish | 5 | Live entry, loading, frozen wait, handoff, pause, completion and recovery share one system. |

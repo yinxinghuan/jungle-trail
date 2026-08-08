@@ -64,7 +64,11 @@ class Game {
      * card will happily render this at 300 fps and pull 150 W to do it, for a
      * scene that is a walking pace nature documentary. 60 is the target and
      * the cap. */
-    this.frameCap = Number(hash.get('fps')) || (this.mobileLike ? 30 : 60);
+    /* Responsive input benefits more from a fixed cinematic 30 fps than this
+     * scene does. Mobile starts at display cadence and only falls back after
+     * sustained evidence that the device cannot hold roughly forty frames. */
+    this.frameCap = Number(hash.get('fps')) || 60;
+    this._adaptiveFrameCap = !hash.get('fps');
 
     this._initRenderer();
     this._initScene();
@@ -419,6 +423,9 @@ class Game {
       if (this._badFor > 1.6) {
         const i = TIER_ORDER.indexOf(this.tier);
         if (i > 0) this.setTier(TIER_ORDER[i - 1]);
+        else if (this.mobileLike && this._adaptiveFrameCap && this.frameCap > 30) {
+          this.frameCap = 30;
+        }
         this._badFor = 0;
       }
     } else {
