@@ -6,7 +6,7 @@ const coarseInput = matchMedia('(pointer: coarse)').matches || navigator.maxTouc
 
 const $ = (id) => document.getElementById(id);
 const ui = {
-  canvas: $('view'), sleeping: $('sleeping'), sleepingCopy: $('sleeping-copy'),
+  shell: $('shell'), canvas: $('view'), sleeping: $('sleeping'), sleepingCopy: $('sleeping-copy'),
   start: $('start-button'), status: $('build-status'), hud: $('hud'),
   progress: $('progress-fill'), landmark: $('landmark-label'), sound: $('sound-button'),
   pause: $('pause-button'), look: $('look-zone'), ghost: $('ghost-gesture'), move: $('move-control'), knob: $('stick-knob'),
@@ -54,6 +54,11 @@ let hintStage = coarseInput ? 'look' : 'done';
 let ghostRaf = 0;
 let ghostTimers = [];
 let userInteracted = false;
+let preparing = false;
+let sceneReady = false;
+let entered = false;
+let previewRaf = 0;
+let previewTimer = 0;
 
 function supportsWebGL2() {
   try { return !!document.createElement('canvas').getContext('webgl2'); }
@@ -64,6 +69,7 @@ function setError(message) {
   ui.errorTitle.textContent = t('startFailed');
   ui.errorCopy.textContent = message;
   ui.error.hidden = false;
+  ui.sleeping.setAttribute('aria-busy', 'false');
   ui.sleeping.hidden = true;
   ui.hud.hidden = true;
 }
@@ -255,6 +261,7 @@ function attachActions() {
 }
 
 function installLifecycle() {
+  docHidden = document.hidden;
   document.addEventListener('visibilitychange', () => {
     docHidden = document.hidden;
     applyPause();
@@ -265,8 +272,69 @@ function installLifecycle() {
   }, { threshold: [0, 0.15, 0.5] }).observe(ui.canvas);
 }
 
-async function start() {
-  if (game) return;
+function freezePreview() {
+  cancelAnimationFrame(previewRaf);
+  clearTimeout(previewTimer);
+  previewRaf = 0;
+  previewTimer = 0;
+  if (!entered) {
+    game?.stop();
+    if (game && !document.hidden && !offscreen) {
+      for (let frame = 0; frame < 6; frame += 1) {
+        game.step(0);
+        game.renderOnce();
+      }
+    }
+    ui.sleeping.dataset.previewFrozenAt = performance.now().toFixed(1);
+    ui.sleeping.dataset.previewState = 'frozen';
+    ui.sleeping.classList.add('is-frozen');
+  }
+}
+
+function startPreview() {
+  sceneReady = true;
+  ui.shell.classList.add('is-scene-ready');
+  ui.sleeping.classList.remove('is-building');
+  ui.sleeping.classList.add('is-ready');
+  ui.sleeping.setAttribute('aria-busy', 'false');
+  ui.start.disabled = false;
+  ui.status.textContent = t('entryReady');
+
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || docHidden || offscreen) {
+    ui.sleeping.dataset.previewSkip = matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'reduced-motion'
+      : docHidden ? 'document-hidden' : 'offscreen';
+    freezePreview();
+    return;
+  }
+
+  ui.sleeping.dataset.previewState = 'settling';
+  game.setPaused(false);
+  game.begin();
+  previewTimer = setTimeout(() => {
+    if (entered || !game) return;
+    const duration = 3600;
+    const started = performance.now();
+    const startYaw = game.walker.yaw;
+    const startPitch = game.walker.pitch;
+    ui.sleeping.dataset.previewMotionStartedAt = started.toFixed(1);
+    ui.sleeping.dataset.previewState = 'motion';
+    const frame = (now) => {
+      if (entered || !game) return;
+      const progress = Math.min(1, (now - started) / duration);
+      const eased = 0.5 - Math.cos(progress * Math.PI) * 0.5;
+      game.walker.yaw = startYaw - eased * 0.14;
+      game.walker.pitch = startPitch + Math.sin(progress * Math.PI) * 0.012;
+      if (progress < 1) previewRaf = requestAnimationFrame(frame);
+      else freezePreview();
+    };
+    previewRaf = requestAnimationFrame(frame);
+  }, 600);
+}
+
+async function prepareScene() {
+  if (game || preparing || document.hidden) return;
+  preparing = true;
   if (!supportsWebGL2()) return setError(t('webglError'));
   ui.start.disabled = true;
   ui.status.textContent = t('preparing');
@@ -275,26 +343,47 @@ async function start() {
   try {
     const { startGame } = await import('./app.js');
     ui.status.textContent = t('firstFrame');
-    game = startGame(ui.canvas);
+    game = startGame(ui.canvas, { autoBegin: false });
     game.ambience?.setMuted?.(muted);
     attachJoystick();
     attachLook();
     attachActions();
     installLifecycle();
-    startedAt = performance.now();
-    ui.sleeping.hidden = true;
-    ui.hud.hidden = false;
-    ui.hint.textContent = hintStage === 'look' ? t('lookHint') : '';
-    ui.hint.hidden = hintStage === 'done';
-    if (hintStage === 'look') ghostTimers.push(setTimeout(runLookGhost, 1200));
-    updateHud();
+    startPreview();
   } catch (error) {
     console.error(error);
     setError(`${t('startFailed')} ${error?.message || ''}`.trim());
   }
 }
 
-ui.start.addEventListener('click', start);
+function enterExperience() {
+  if (!game || !sceneReady || entered) return;
+  entered = true;
+  cancelAnimationFrame(previewRaf);
+  clearTimeout(previewTimer);
+  previewRaf = 0;
+  previewTimer = 0;
+  ui.start.disabled = true;
+  ui.sleeping.classList.add('is-entering');
+  userPaused = false;
+  game.setPaused(false);
+  game.begin();
+  startedAt = performance.now();
+  ui.hud.hidden = false;
+  ui.sleeping.style.pointerEvents = 'none';
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fade = ui.sleeping.animate(
+    [{ opacity: 1 }, { opacity: 0 }],
+    { duration: reduced ? 1 : 320, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' },
+  );
+  fade.finished.then(() => { ui.sleeping.hidden = true; }).catch(() => { ui.sleeping.hidden = true; });
+  ui.hint.textContent = hintStage === 'look' ? t('lookHint') : '';
+  ui.hint.hidden = hintStage === 'done';
+  if (hintStage === 'look') ghostTimers.push(setTimeout(runLookGhost, 1200));
+  updateHud();
+}
+
+ui.start.addEventListener('click', enterExperience);
 ui.retry.addEventListener('click', () => location.reload());
 ui.pause.addEventListener('click', () => {
   cancelGhostDemo(true); userPaused = true; ui.pausePanel.hidden = false; applyPause();
@@ -321,6 +410,23 @@ ui.restart.addEventListener('click', () => {
 
 addEventListener('beforeunload', () => {
   cancelAnimationFrame(hudRaf);
+  cancelAnimationFrame(previewRaf);
+  clearTimeout(previewTimer);
   cancelGhostDemo();
   game?.dispose();
 });
+
+function bootWhenVisible() {
+  if (!document.hidden) {
+    requestAnimationFrame(() => requestAnimationFrame(prepareScene));
+    return;
+  }
+  const onVisible = () => {
+    if (document.hidden) return;
+    document.removeEventListener('visibilitychange', onVisible);
+    requestAnimationFrame(() => requestAnimationFrame(prepareScene));
+  };
+  document.addEventListener('visibilitychange', onVisible);
+}
+
+bootWhenVisible();

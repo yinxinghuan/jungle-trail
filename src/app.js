@@ -514,6 +514,13 @@ class Game {
     this._raf = requestAnimationFrame(loop);
   }
 
+  stop() {
+    cancelAnimationFrame(this._raf);
+    this._raf = 0;
+    this._acc = 0;
+    this.running = false;
+  }
+
   setPaused(p) {
     this.paused = !!p;
     this.ambience?.setPaused(this.paused);
@@ -637,7 +644,7 @@ function installWarpKeys(game) {
   });
 }
 
-export function startGame(canvas = document.getElementById('view')) {
+export function startGame(canvas = document.getElementById('view'), { autoBegin = true } = {}) {
   const game = new Game(canvas);
   window.__game = game;
   window.THREE = THREE;
@@ -648,6 +655,6 @@ export function startGame(canvas = document.getElementById('view')) {
   // sleeping surface must not disappear merely because modules downloaded.
   game.step(1 / 60);
   game.renderOnce();
-  if (!/(^|[#&])manual(&|$)/.test(location.hash)) game.begin();
+  if (autoBegin && !/(^|[#&])manual(&|$)/.test(location.hash)) game.begin();
   return game;
 }

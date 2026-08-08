@@ -31,11 +31,11 @@
 
 ### 状态与启动
 
-`src/main.js` 管理 `sleeping → building → exploring → paused/completed/error`。首屏只加载约 10 KB 的壳代码；玩家点击后才动态导入约 1.2 MB 的场景 chunk。启动壳在 `startGame()` 完成世界构建、执行一次 `step()` 并实际 `renderOnce()` 后才隐藏。
+`src/main.js` 管理 `sleeping → building → preview → ready-frozen → exploring → paused/completed/error`。首屏壳约 13 KB；页面真实可见后才动态导入约 1.2 MB 的场景 chunk。`startGame({ autoBegin: false })` 完成世界构建与首帧后，入口先停留 0.6 秒，再运行 3.6 秒观察镜头；随后 `Game.stop()` 取消 RAF，并用 6 个静止渲染清除运动模糊。点击入口才恢复实时循环、显示 HUD 和解锁声音。
 
 ### 主循环与生命周期
 
-`Game.begin()` 使用 RAF 和帧率上限驱动 `step/render`，移动端默认 30 fps/low，桌面默认 60 fps/high。连续 1.6 秒超预算时只下降一个画质级别。`visibilitychange` 与 `IntersectionObserver` 合并为暂停状态，暂停时停止场景更新并挂起音频。
+`Game.begin()` 使用 RAF 和帧率上限驱动 `step/render`，`Game.stop()` 取消入口待机循环；移动端默认 30 fps/low，桌面默认 60 fps/high。连续 1.6 秒超预算时只下降一个画质级别。`visibilitychange` 与 `IntersectionObserver` 合并为暂停状态，隐藏平台预载不会创建 WebGL，已运行场景在不可见时停止场景更新并挂起音频。
 
 ### 移动性能
 
