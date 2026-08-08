@@ -21,6 +21,7 @@
 - `src/render/`：天空、林冠光场、体积光、AO、调色、景深、泛光和运动模糊。
 - `src/audio/`：Worker 合成、环境层、脚步、水声、鸟虫和音频图。
 - `src/gfx/`：程序纹理烘焙与共享 GLSL。
+- `worker/index.js`：自托管发布适配器；本游戏没有 API，所有 `/api/*` 请求统一返回 404。
 - `public/THIRD_PARTY_NOTICES.txt`：上游作品和 Three.js 的完整分发许可。
 - `public/poster.png`：1024×1024 正式英文 raster 海报。
 - `_qa/capture.mjs`、`_qa/ui/`：移动端状态截图脚本与首轮/复验证据。
