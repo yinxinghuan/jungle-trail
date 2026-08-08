@@ -9,6 +9,10 @@ const ui = {
   shell: $('shell'), canvas: $('view'), sleeping: $('sleeping'), sleepingCopy: $('sleeping-copy'),
   start: $('start-button'), status: $('build-status'), hud: $('hud'),
   progress: $('progress-fill'), landmark: $('landmark-label'), sound: $('sound-button'),
+  clueProgress: $('clue-progress'), clueCount: $('clue-count'),
+  mission: $('mission'), observation: $('observation'), observationProgress: $('observation-progress'),
+  observationLabel: $('observation-label'), clueReveal: $('clue-reveal'),
+  clueRevealKicker: $('clue-reveal-kicker'), clueRevealCopy: $('clue-reveal-copy'),
   pause: $('pause-button'), look: $('look-zone'), ghost: $('ghost-gesture'), move: $('move-control'), knob: $('stick-knob'),
   sprint: $('sprint-button'), jump: $('jump-button'), hint: $('hint'),
   pausePanel: $('pause-panel'), pauseTitle: $('pause-title'), resume: $('resume-button'), trail: $('trail-button'),
@@ -40,6 +44,10 @@ ui.sound.innerHTML = icons.sound;
 ui.pause.innerHTML = icons.pause;
 ui.sound.setAttribute('aria-label', t('mute'));
 ui.pause.setAttribute('aria-label', t('pause'));
+ui.clueCount.textContent = t('clueCount', { n: 0 });
+ui.mission.textContent = t('mission');
+ui.clueRevealKicker.textContent = t('clueKicker');
+ui.clueRevealCopy.textContent = t('clueRecorded');
 
 let game = null;
 let startedAt = 0;
@@ -59,6 +67,20 @@ let sceneReady = false;
 let entered = false;
 let previewRaf = 0;
 let previewTimer = 0;
+let missionTimer = 0;
+let clueRevealTimer = 0;
+let lastHudAt = 0;
+let clueProgress = 0;
+let clueComplete = false;
+let clueAlignedAt = 0;
+let clueLastAlignedAt = 0;
+
+const CLUE_RANGE = 18;
+const CLUE_ALIGN_RADIUS = 0.09;
+const CLUE_BREAK_RADIUS = 0.14;
+const CLUE_CONFIRM_MS = 120;
+const CLUE_GRACE_MS = 350;
+const CLUE_HOLD_SECONDS = 1.1;
 
 function supportsWebGL2() {
   try { return !!document.createElement('canvas').getContext('webgl2'); }
@@ -95,8 +117,94 @@ function landmarkFor(tValue) {
   return 0;
 }
 
-function updateHud() {
+function setObservationProgress(value) {
+  clueProgress = Math.min(1, Math.max(0, value));
+  ui.observationProgress.style.strokeDashoffset = String(1 - clueProgress);
+  ui.hud.dataset.clueProgress = clueProgress.toFixed(3);
+}
+
+function completeFirstClue() {
+  if (clueComplete) return;
+  clueComplete = true;
+  setObservationProgress(1);
+  ui.hud.dataset.clueState = 'recorded';
+  ui.observation.hidden = true;
+  ui.clueProgress.classList.add('is-recorded');
+  ui.clueCount.textContent = t('clueCount', { n: 1 });
+  ui.clueReveal.hidden = false;
+  clearTimeout(clueRevealTimer);
+  clueRevealTimer = setTimeout(() => { ui.clueReveal.hidden = true; }, 3600);
+  try { game?.ambience?.playDiscovery?.(); } catch (_) { /* audio is non-fatal */ }
+  navigator.vibrate?.(20);
+}
+
+function updateFirstClue(now, dt) {
+  if (!game || clueComplete || userPaused || docHidden || offscreen || completed) {
+    ui.observation.hidden = true;
+    return;
+  }
+  const anchor = game.ruins?.observationAnchors?.firstStone;
+  const probe = game.observationProbe(anchor);
+  const nearby = probe.distance <= CLUE_RANGE;
+  ui.hud.dataset.clueDistance = Number.isFinite(probe.distance) ? probe.distance.toFixed(2) : '';
+  ui.hud.dataset.clueCenterDistance = Number.isFinite(probe.centerDistance)
+    ? probe.centerDistance.toFixed(3) : '';
+  if (!nearby) {
+    ui.hud.dataset.clueState = 'roaming';
+    ui.observation.hidden = true;
+    clueAlignedAt = 0;
+    clueLastAlignedAt = 0;
+    if (clueProgress) setObservationProgress(0);
+    return;
+  }
+
+  if (hintStage !== 'done') {
+    cancelGhostDemo();
+    hintStage = 'done';
+    ui.hint.hidden = true;
+  }
+
+  ui.observation.hidden = false;
+  const sprinting = game.walker.isSprinting;
+  const centered = probe.visible && probe.centerDistance <= CLUE_ALIGN_RADIUS;
+  const tracking = !sprinting && probe.visible
+    && (centered || (clueLastAlignedAt && probe.centerDistance <= CLUE_BREAK_RADIUS));
+  if (tracking) {
+    if (!clueAlignedAt) clueAlignedAt = now;
+    clueLastAlignedAt = now;
+    if (now - clueAlignedAt >= CLUE_CONFIRM_MS) {
+      setObservationProgress(clueProgress + dt / CLUE_HOLD_SECONDS);
+    }
+  } else {
+    clueAlignedAt = 0;
+    const inGrace = clueLastAlignedAt && now - clueLastAlignedAt <= CLUE_GRACE_MS;
+    if (!inGrace) setObservationProgress(clueProgress - dt * 0.85 / CLUE_HOLD_SECONDS);
+  }
+
+  ui.observation.classList.toggle('is-aligned', !!tracking);
+  ui.observationLabel.textContent = sprinting
+    ? t('clueSprint')
+    : tracking ? t('clueFocus') : t('clueNearby');
+  ui.hud.dataset.clueState = tracking ? 'aligned' : 'nearby';
+  if (clueProgress >= 1) completeFirstClue();
+}
+
+function resetFirstClue() {
+  clueComplete = false;
+  clueAlignedAt = 0;
+  clueLastAlignedAt = 0;
+  clearTimeout(clueRevealTimer);
+  ui.clueReveal.hidden = true;
+  ui.clueProgress.classList.remove('is-recorded');
+  ui.clueCount.textContent = t('clueCount', { n: 0 });
+  ui.hud.dataset.clueState = 'roaming';
+  setObservationProgress(0);
+}
+
+function updateHud(now = performance.now()) {
   if (!game) return;
+  const dt = lastHudAt ? Math.min(0.05, Math.max(0, (now - lastHudAt) / 1000)) : 0;
+  lastHudAt = now;
   const trailT = game.walker.trailT;
   ui.progress.style.width = `${Math.min(100, Math.max(2, trailT * 100))}%`;
   const landmark = landmarkFor(trailT);
@@ -106,6 +214,7 @@ function updateHud() {
     ui.landmark.classList.remove('is-revealing');
     requestAnimationFrame(() => ui.landmark.classList.add('is-revealing'));
   }
+  updateFirstClue(now, dt);
   if (!completed && trailT >= 0.955) finishJourney();
   hudRaf = requestAnimationFrame(updateHud);
 }
@@ -370,6 +479,9 @@ function enterExperience() {
   game.begin();
   startedAt = performance.now();
   ui.hud.hidden = false;
+  ui.mission.hidden = false;
+  clearTimeout(missionTimer);
+  missionTimer = setTimeout(() => { ui.mission.hidden = true; }, 3200);
   ui.sleeping.style.pointerEvents = 'none';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fade = ui.sleeping.animate(
@@ -379,7 +491,7 @@ function enterExperience() {
   fade.finished.then(() => { ui.sleeping.hidden = true; }).catch(() => { ui.sleeping.hidden = true; });
   ui.hint.textContent = hintStage === 'look' ? t('lookHint') : '';
   ui.hint.hidden = hintStage === 'done';
-  if (hintStage === 'look') ghostTimers.push(setTimeout(runLookGhost, 1200));
+  if (hintStage === 'look') ghostTimers.push(setTimeout(runLookGhost, 3800));
   updateHud();
 }
 
@@ -402,6 +514,7 @@ ui.observe.addEventListener('click', () => { ui.complete.hidden = true; });
 ui.restart.addEventListener('click', () => {
   game.goTo(0.02);
   completed = false;
+  resetFirstClue();
   previousLandmark = -1;
   startedAt = performance.now();
   ui.complete.hidden = true;
@@ -412,6 +525,8 @@ addEventListener('beforeunload', () => {
   cancelAnimationFrame(hudRaf);
   cancelAnimationFrame(previewRaf);
   clearTimeout(previewTimer);
+  clearTimeout(missionTimer);
+  clearTimeout(clueRevealTimer);
   cancelGhostDemo();
   game?.dispose();
 });

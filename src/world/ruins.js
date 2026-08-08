@@ -821,6 +821,11 @@ export class Ruins {
     this.root.name = 'ruins';
     this.vineAnchors = [];
     this.cells = [];
+    /* Product interaction anchors stay attached to authored geometry rather
+     * than repeating guessed world coordinates in the UI shell. The stone
+     * mesh is merged for rendering, so this small semantic map is the stable
+     * way for observation gameplay to address a specific composition beat. */
+    this.observationAnchors = {};
 
     this.material = makeStoneMaterial(renderer);
 
@@ -1239,10 +1244,12 @@ export class Ruins {
        * is the one object in the first half of the walk that is still where
        * somebody put it. */
       const tilt = up ? 0.045 : 0.14;
-      slab(B, ctx, sx, T.height(sx, sz) + (up ? hgt * 0.36 : 0.20), sz,
+      const sy = T.height(sx, sz) + (up ? hgt * 0.36 : 0.20);
+      slab(B, ctx, sx, sy, sz,
         len, hgt, up ? 0.50 : 1.02,
         [tilt, yaw, up ? -0.03 : 0.11], rng,
         { spalls: up ? 1 : 2, erode: up ? 0.05 : 0.08 });
+      if (up) this.observationAnchors.firstStone = new THREE.Vector3(sx, sy, sz);
     }
   }
 

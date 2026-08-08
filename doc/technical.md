@@ -25,6 +25,7 @@
 - `public/THIRD_PARTY_NOTICES.txt`：上游作品和 Three.js 的完整分发许可。
 - `public/poster.png`：1024×1024 正式英文 raster 海报。
 - `_qa/capture.mjs`、`_qa/ui/`：移动端状态截图脚本与首轮/复验证据。
+- `_qa/capture-clue.mjs`：第一处观察的附近、对准、完成、中文窄屏与 reduced-motion 自动断言和截图。
 - `_production/poster-source.md`：正式海报提示词、来源、平台 transit 失败和双尺寸检查记录。
 - `doc/retrospective.md`：本次源码改造、场景化首屏、性能、视觉 QA、失败案例与跨项目复用合同。
 
@@ -46,6 +47,12 @@
 
 `Walker` 统一键盘和模拟摇杆输入；触控向量保留幅度，移动速度随摇杆距离变化。右侧拖动调用 `lookBy()`，俯仰限制为 ±1.35 rad。跳跃只接受落地边缘触发，冲刺为按住状态。碰撞使用程序化高度场与网格化圆/胶囊/盒代理。
 
+### 第一处观察垂直切片
+
+`Ruins.observationAnchors.firstStone` 在生成 `t=0.356` 的直立加工石块时同步记录其语义世界坐标，避免 UI 重复猜测位置或遍历合并后的遗迹网格。`Game.observationProbe()` 使用可复用 `Vector3` 把该点投影到屏幕短边归一化坐标，并返回可见性、距离与中心偏差，不产生逐帧垃圾。
+
+`src/main.js` 只在玩家进入 `18 m` 范围后启用判定：首次进入短边 `9%` 中心半径并通过 `120 ms` 防抖后，连续累积 `1.1 s`；已经开始观察时允许在 `14%` 半径内继续，并在完全偏离后保留 `0.35 s` 宽限。冲刺、暂停、隐藏、离屏和入口预览均不累积。成功状态只保存在本次页面会话，更新 `线索 1/1`、显示非模态结论、触发轻触觉，并在音频图已准备好时调用 `Ambience.playDiscovery()` 播放两层短促正弦石质共鸣。
+
 ### 响应式布局
 
 WebGL 画布随窗口尺寸更新相机和渲染目标。DOM HUD 直接使用安全区环境变量；粗指针设备显示触控，细指针设备保留 Pointer Lock。短屏缩小摇杆和动作按钮的可见尺寸，但交互目标保持至少 44 px。
@@ -62,6 +69,8 @@ WebGL 画布随窗口尺寸更新相机和渲染目标。DOM HUD 直接使用安
 
 - 调整行走、跳跃、相机或触控：修改 `src/player/controller.js` 与 `src/main.js`。
 - 调整地标、完成阈值和旅程 UI：修改 `landmarkFor()`、`finishJourney()` 及 `src/i18n.js`。
+- 调整观察范围、中心半径、稳定时长和回退：修改 `src/main.js` 的 `CLUE_*` 常量；更换目标主体时修改 `src/world/ruins.js` 的 `observationAnchors`，不要在 HUD 中硬编码世界坐标。
+- 扩展第二、第三处观察：沿用 `Game.observationProbe()` 与同一 UI 状态合同，为门址和瀑布分别增加语义 anchor；完成三章前不增加排行榜或存档。
 - 调整移动性能：修改 `src/app.js` 的移动画质参数、`src/world/vegetation.js` 的 `densityScale/atlasPx`、`src/render/atmosphere.js` 与 `src/world/water.js` 的 tier 表。
 - 调整场景和路径：修改 `src/world/path.js`、`terrain.js`、`vegetation.js`、`ruins.js` 或 `water.js`；改动后必须重新做上游基线对照。
 - 调整颜色、图标、面板和响应式布局：修改 `src/ui.css` 与 `index.html`，并同步 `doc/visual.md`。

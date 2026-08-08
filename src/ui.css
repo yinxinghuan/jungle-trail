@@ -67,9 +67,31 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
 .jt-progress__label.is-revealing { animation: jt-landmark 1.8s var(--jt-ease); }
 .jt-progress__track { height: 2px; overflow: hidden; background: rgba(240,243,233,.2); }
 .jt-progress__track i { display: block; width: 2%; height: 100%; background: var(--jt-moss); transition: width 320ms var(--jt-ease); }
+.jt-clue-progress { display: flex; align-items: center; gap: 6px; min-height: 18px; margin-top: 7px; color: rgba(240,243,233,.58); font-size: 10px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; text-shadow: 0 2px 8px #000; }
+.jt-clue-progress__mark { display: grid; place-items: center; width: 16px; height: 16px; color: rgba(216,228,209,.48); transition: color 260ms var(--jt-ease), transform 420ms var(--jt-ease); }
+.jt-clue-progress__mark svg { width: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.jt-clue-progress.is-recorded { color: var(--jt-ink); }
+.jt-clue-progress.is-recorded .jt-clue-progress__mark { color: var(--jt-moss); transform: rotate(45deg); }
 .jt-hud__actions { display: flex; gap: 8px; pointer-events: auto; }
 .jt-icon-button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; color: var(--jt-ink); border: 1px solid var(--jt-line); border-radius: 50%; background: rgba(5,10,7,.42); backdrop-filter: blur(6px); }
 .jt-icon-button svg,.jt-action-button svg { width: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.jt-mission,.jt-clue-reveal { position: absolute; z-index: 4; top: max(82px, calc(env(safe-area-inset-top) + 70px)); left: 50%; width: min(78vw, 430px); pointer-events: none; transform: translateX(-50%); text-align: center; text-shadow: 0 2px 12px #000, 0 1px 3px #000; }
+.jt-mission { color: rgba(240,243,233,.9); font-size: 12px; line-height: 1.45; letter-spacing: .04em; animation: jt-mission-in 360ms var(--jt-ease); }
+.jt-clue-reveal { top: max(92px, calc(env(safe-area-inset-top) + 80px)); animation: jt-clue-reveal 420ms var(--jt-ease); }
+.jt-clue-reveal__kicker { display: block; margin-bottom: 7px; color: var(--jt-moss); font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.jt-clue-reveal p { margin: 0; color: var(--jt-ink); font-size: clamp(16px, 4.3vw, 19px); font-weight: 430; line-height: 1.45; }
+
+.jt-observation { position: absolute; z-index: 4; left: 50%; top: 50%; width: min(82vw, 340px); pointer-events: none; transform: translate(-50%,-50%); text-align: center; }
+.jt-observation__ring { position: relative; display: block; width: 56px; height: 56px; margin: 0 auto; filter: drop-shadow(0 2px 7px rgba(0,0,0,.72)); transition: transform 180ms var(--jt-ease), opacity 180ms; }
+.jt-observation__ring svg { display: block; width: 100%; height: 100%; overflow: visible; transform: rotate(-90deg); }
+.jt-observation__base,.jt-observation__progress { fill: none; stroke-linecap: round; }
+.jt-observation__base { stroke: rgba(240,243,233,.56); stroke-width: 1.2; stroke-dasharray: .13 .07; }
+.jt-observation__progress { stroke: var(--jt-moss); stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 70ms linear; }
+.jt-observation__label { display: inline-block; min-height: 20px; margin-top: 12px; color: rgba(240,243,233,.78); font-size: 11px; font-weight: 650; line-height: 1.45; letter-spacing: .08em; text-shadow: 0 2px 10px #000, 0 1px 3px #000; }
+.jt-observation.is-aligned .jt-observation__ring { transform: scale(.94); }
+.jt-observation.is-aligned .jt-observation__base { stroke: rgba(240,243,233,.82); }
+.jt-observation.is-aligned .jt-observation__label { color: var(--jt-ink); }
 
 .jt-look-zone { position: absolute; z-index: 1; top: 72px; right: 0; bottom: 0; width: 62%; pointer-events: auto; touch-action: none; }
 .jt-ghost { position: absolute; z-index: 4; width: 44px; height: 44px; pointer-events: none; transform: translate(-50%,-50%); filter: drop-shadow(0 1px 1px #172018) drop-shadow(0 4px 10px rgba(0,0,0,.42)); }
@@ -103,6 +125,8 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
 @keyframes jt-landmark { 0% { opacity: .4; transform: translateY(-4px); } 16%,70% { opacity: 1; transform: none; } 100% { opacity: .8; } }
 @keyframes jt-hint { 0%,100% { opacity: .55; transform: translate(-50%, 3px); } 50% { opacity: 1; transform: translate(-50%, -2px); } }
 @keyframes jt-complete { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes jt-mission-in { from { opacity: 0; transform: translate(-50%,-5px); } to { opacity: 1; transform: translate(-50%,0); } }
+@keyframes jt-clue-reveal { from { opacity: 0; transform: translate(-50%,-7px); } to { opacity: 1; transform: translate(-50%,0); } }
 
 @media (pointer: fine) {
   .jt-controls,.jt-look-zone,.jt-hint,.jt-ghost { display: none; }
@@ -114,6 +138,9 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
   .jt-action-button { width: 58px; min-height: 58px; }
   .jt-action-button--jump { width: 66px; min-height: 66px; }
   .jt-hint { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 102px); }
+  .jt-mission,.jt-clue-reveal { top: max(70px, calc(env(safe-area-inset-top) + 58px)); width: min(76vw, 300px); }
+  .jt-observation { top: 46%; }
+  .jt-observation__label { max-width: 220px; }
   .jt-sleeping__content { margin-top: 0; }
   .jt-sleeping h1 { font-size: clamp(48px, 17vw, 66px); }
   .jt-sleeping__copy { margin: 18px 0 20px; }

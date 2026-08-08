@@ -197,6 +197,10 @@ export class Walker {
     return this;
   }
 
+  get isSprinting() {
+    return !!(this.touch.jog || this.keys.ShiftLeft || this.keys.ShiftRight);
+  }
+
   /** Apply a touch-look delta measured in CSS pixels. */
   lookBy(dx, dy, sensitivity = 0.0032) {
     this.yaw -= (Number(dx) || 0) * sensitivity;

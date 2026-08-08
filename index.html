@@ -140,11 +140,32 @@
       <div class="jt-progress" aria-live="polite">
         <span id="landmark-label" class="jt-progress__label"></span>
         <div class="jt-progress__track" aria-hidden="true"><i id="progress-fill"></i></div>
+        <div id="clue-progress" class="jt-clue-progress" aria-live="polite">
+          <span id="clue-mark" class="jt-clue-progress__mark" aria-hidden="true">
+            <svg viewBox="0 0 16 16"><path d="M8 2.5 13.5 8 8 13.5 2.5 8 8 2.5Z"/><path d="M8 5.5v5"/></svg>
+          </span>
+          <span id="clue-count"></span>
+        </div>
       </div>
       <div class="jt-hud__actions">
         <button id="sound-button" class="jt-icon-button" type="button" aria-label="Mute sound"></button>
         <button id="pause-button" class="jt-icon-button" type="button" aria-label="Pause"></button>
       </div>
+    </div>
+
+    <div id="mission" class="jt-mission" hidden role="status" aria-live="polite"></div>
+    <div id="observation" class="jt-observation" hidden role="status" aria-live="polite">
+      <span class="jt-observation__ring" aria-hidden="true">
+        <svg viewBox="0 0 56 56">
+          <circle class="jt-observation__base" cx="28" cy="28" r="23" pathLength="1"/>
+          <circle id="observation-progress" class="jt-observation__progress" cx="28" cy="28" r="23" pathLength="1"/>
+        </svg>
+      </span>
+      <span id="observation-label" class="jt-observation__label"></span>
+    </div>
+    <div id="clue-reveal" class="jt-clue-reveal" hidden role="status" aria-live="polite">
+      <span id="clue-reveal-kicker" class="jt-clue-reveal__kicker"></span>
+      <p id="clue-reveal-copy"></p>
     </div>
 
     <div id="look-zone" class="jt-look-zone" aria-hidden="true"></div>

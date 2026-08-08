@@ -571,6 +571,25 @@ export class Ambience {
     this._foot = 0;
   }
 
+  /** A quiet, non-magical stone resonance for recording an observation. */
+  playDiscovery() {
+    if (!this.ready || this.muted || !this.ctx || !this.master) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    for (const [frequency, gain, delay] of [[176, 0.055, 0], [286, 0.025, 0.035]]) {
+      const osc = ctx.createOscillator();
+      const amp = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(frequency, now + delay);
+      osc.frequency.exponentialRampToValueAtTime(frequency * 0.72, now + delay + 0.42);
+      amp.gain.setValueAtTime(0.0001, now + delay);
+      amp.gain.exponentialRampToValueAtTime(gain, now + delay + 0.025);
+      amp.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.42);
+      osc.connect(amp); amp.connect(this.master);
+      osc.start(now + delay); osc.stop(now + delay + 0.44);
+    }
+  }
+
   setPaused(paused) {
     if (!this.ready) return;
     if (paused && this.ctx.state === 'running' && this.ctx.suspend) this.ctx.suspend();

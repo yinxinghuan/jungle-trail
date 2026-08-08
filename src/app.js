@@ -52,6 +52,8 @@ class Game {
     this._frames = 0;
     this._fpsT = 0;
     this._stableFor = 0;
+    this._observationPoint = new THREE.Vector3();
+    this._observationProbe = { visible: false, distance: Infinity, centerDistance: Infinity };
 
     const hash = new URLSearchParams(location.hash.slice(1));
     this.pinnedTier = TIER_ORDER.includes(location.hash.slice(1)) ? location.hash.slice(1)
@@ -533,6 +535,34 @@ class Game {
 
   /** Teleport to normalised arc length along the trail. */
   goTo(t) { this.walker.setAuto(null).placeAt(t); return this; }
+
+  /**
+   * Project a semantic world anchor into the full-screen gameplay canvas.
+   * The result object is reused so the HUD can sample it every frame without
+   * producing garbage or walking the merged ruin geometry.
+   */
+  observationProbe(point) {
+    const result = this._observationProbe;
+    if (!point) {
+      result.visible = false;
+      result.distance = Infinity;
+      result.centerDistance = Infinity;
+      return result;
+    }
+    result.distance = this.camera.position.distanceTo(point);
+    this._observationPoint.copy(point).project(this.camera);
+    const w = Math.max(1, innerWidth);
+    const h = Math.max(1, innerHeight);
+    const short = Math.min(w, h);
+    result.visible = this._observationPoint.z >= -1 && this._observationPoint.z <= 1
+      && Math.abs(this._observationPoint.x) <= 1.08
+      && Math.abs(this._observationPoint.y) <= 1.08;
+    result.centerDistance = Math.hypot(
+      this._observationPoint.x * w * 0.5 / short,
+      this._observationPoint.y * h * 0.5 / short,
+    );
+    return result;
+  }
 
   setSun(elevationDeg, azimuthDeg) {
     this.sky.setSun(elevationDeg, azimuthDeg);
