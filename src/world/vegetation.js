@@ -876,7 +876,7 @@ export class Vegetation {
         if (this.clueSightline && CLUE_CLEAR_SPECIES.has(name)) {
           const { start, end } = this.clueSightline;
           const targetD2 = (px - end.x) * (px - end.x) + (pz - end.z) * (pz - end.z);
-          if (targetD2 < 2.4 * 2.4 || distanceToSegment2(px, pz, start, end) < 1.2 * 1.2) continue;
+          if (targetD2 < 3.4 * 3.4 || distanceToSegment2(px, pz, start, end) < 1.6 * 1.6) continue;
         }
         let y = t.height(px, pz);
         /* Nothing here is an emergent aquatic, so anything with its crown

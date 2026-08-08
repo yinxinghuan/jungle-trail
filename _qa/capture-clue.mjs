@@ -61,6 +61,15 @@ await enter(page);
 await aimAtFirstStone(page, 0.26);
 await page.waitForFunction(() => document.querySelector('#hud').dataset.clueState === 'nearby');
 await page.screenshot({ path: shot('platform-layout-clue-nearby-390x844.png'), fullPage: true });
+await page.waitForFunction(() => document.querySelector('#observation').classList.contains('is-helped'), null, { timeout: 7_000 });
+const helped = await page.evaluate(() => ({
+  text: document.querySelector('#observation-label').textContent,
+  angle: getComputedStyle(document.querySelector('#observation')).getPropertyValue('--jt-clue-angle'),
+}));
+if (!helped.text.includes('metal-ringed stone') || !helped.angle.trim()) {
+  throw new Error(`Clue assistance did not become specific: ${JSON.stringify(helped)}`);
+}
+await page.screenshot({ path: shot('platform-layout-clue-guided-390x844.png'), fullPage: true });
 
 await aimAtFirstStone(page);
 await holdAimAtFirstStone(page);
@@ -71,7 +80,7 @@ const aligned = await page.evaluate(() => ({
   progress: Number(document.querySelector('#hud').dataset.clueProgress),
   distance: Number(document.querySelector('#hud').dataset.clueDistance),
 }));
-if (aligned.state !== 'aligned' || aligned.progress <= 0 || aligned.progress >= 1 || aligned.distance > 18) {
+if (aligned.state !== 'aligned' || aligned.progress <= 0 || aligned.progress >= 1 || aligned.distance > 22) {
   throw new Error(`Invalid aligned observation: ${JSON.stringify(aligned)}`);
 }
 await page.screenshot({ path: shot('platform-layout-clue-aligned-390x844.png'), fullPage: true });

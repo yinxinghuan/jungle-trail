@@ -47,20 +47,14 @@ import { FS_VERT, DEPTH_GLSL, SSTEP } from '../gfx/glsl.js';
  * `bloom` is a mip count, `dof` a tap count and `motion` a tap count; zero
  * means the pass is not run at all rather than run at strength zero.
  *
- * Every tier gets every effect, and the first version of this table did not:
- * defocus and the shutter were high and ultra only, on the reasoning that a
- * machine that has fallen to `low` needs the milliseconds more than it needs
- * the optics. Measured, that reasoning was wrong twice. The cost is 0.05 ms at
- * six taps, which is a third of a per cent of a frame on hardware slow enough
- * to be down here; and the thing being economised on is not a garnish, it is
- * the difference between a lens and a pinhole. Half the quality ladder was
- * shipping a look that had never been reviewed, which is the more expensive
- * outcome by a wide margin. The tiers scale the *sampling* of each effect
- * rather than its presence, so what changes going down is how much noise is in
- * the answer, not whether the answer is there.
+ * Low is the interaction-first mobile tier. Defocus is deliberately absent:
+ * it spends a full-screen pass softening the same path edges and worked-stone
+ * features the player needs for steering and observation. The higher tiers
+ * retain the reviewed lens treatment; low keeps only restrained bloom and a
+ * short shutter so the scene still grades as the same work.
  */
 const TIER_GRADE = {
-  low: { bloom: 5, dof: 6, motion: 4, shutter: 0.22 },
+  low: { bloom: 4, dof: 0, motion: 4, shutter: 0.22 },
   medium: { bloom: 6, dof: 8, motion: 8, shutter: 0.45 },
   high: { bloom: 8, dof: 12, motion: 20, shutter: 1.0 },
   ultra: { bloom: 8, dof: 16, motion: 28, shutter: 1.0 },

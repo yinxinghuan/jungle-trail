@@ -826,6 +826,7 @@ export class Ruins {
      * mesh is merged for rendering, so this small semantic map is the stable
      * way for observation gameplay to address a specific composition beat. */
     this.observationAnchors = {};
+    this.firstStoneSignal = null;
 
     this.material = makeStoneMaterial(renderer);
 
@@ -836,6 +837,7 @@ export class Ruins {
     this._bakeSurfaceData(B);
     this._buildGrid(B);
     this._emit(B);
+    this._buildFirstStoneSignal();
   }
 
   _registerColliders(B) {
@@ -1233,7 +1235,7 @@ export class Ruins {
     const tn = new THREE.Vector3();
     for (const [tt, off, len, hgt, yaw, up] of [
       [0.352, -2.6, 1.9, 0.66, 0.62, false],   // kerb, lying, nearest the eye
-      [0.356, 2.9, 0.62, 1.45, 2.28, true],    // the stub, set on end
+      [0.356, 2.9, 0.78, 1.75, 2.28, true],    // worked marker, set on end
       [0.372, -3.1, 1.25, 0.58, 1.50, false],  // a second kerb further out
     ]) {
       this.trail.pointAt(tt, p);
@@ -1245,12 +1247,69 @@ export class Ruins {
        * somebody put it. */
       const tilt = up ? 0.045 : 0.14;
       const sy = T.height(sx, sz) + (up ? hgt * 0.36 : 0.20);
+      const blockQ = _qt.setFromEuler(_eu.set(tilt, yaw, up ? -0.03 : 0.11, 'YXZ')).clone();
       slab(B, ctx, sx, sy, sz,
         len, hgt, up ? 0.50 : 1.02,
         [tilt, yaw, up ? -0.03 : 0.11], rng,
         { spalls: up ? 1 : 2, erode: up ? 0.05 : 0.08 });
-      if (up) this.observationAnchors.firstStone = new THREE.Vector3(sx, sy, sz);
+      if (up) {
+        const toTrail = p.clone().sub(new THREE.Vector3(sx, sy, sz));
+        const front = new THREE.Vector3(0, 0, 1).applyQuaternion(blockQ);
+        this.firstStoneSignal = {
+          position: new THREE.Vector3(sx, sy, sz),
+          quaternion: blockQ,
+          face: front.dot(toTrail) >= 0 ? 1 : -1,
+        };
+      }
     }
+  }
+
+  _buildFirstStoneSignal() {
+    const signal = this.firstStoneSignal;
+    if (!signal) return;
+    const mark = new THREE.Group();
+    mark.name = 'first-stone-alloy-signal';
+    mark.position.copy(signal.position);
+    mark.quaternion.copy(signal.quaternion);
+
+    const face = new THREE.Group();
+    /* The observation reticle belongs to the centre of the whole marker, so
+     * the authored sign sits above it instead of being covered by the HUD at
+     * the exact moment the player has found it. */
+    face.position.set(0, 0.38, signal.face * 0.258);
+    if (signal.face < 0) face.rotation.y = Math.PI;
+    const alloy = new THREE.MeshStandardMaterial({
+      color: 0xb18d55,
+      roughness: 0.38,
+      metalness: 0.78,
+      envMapIntensity: 0.72,
+    });
+    const patina = new THREE.MeshStandardMaterial({
+      color: 0x365c4a,
+      roughness: 0.72,
+      metalness: 0.32,
+      envMapIntensity: 0.34,
+    });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.020, 8, 40), alloy);
+    ring.name = 'first-stone-ring';
+    const oxidationSeam = new THREE.Mesh(
+      new THREE.TorusGeometry(0.235, 0.006, 5, 40), patina,
+    );
+    oxidationSeam.name = 'first-stone-oxidation-seam';
+    oxidationSeam.position.z = 0.006;
+    const axis = new THREE.Mesh(new THREE.BoxGeometry(0.030, 0.34, 0.014), alloy);
+    axis.name = 'first-stone-axis';
+    axis.position.z = 0.004;
+    const axisPatina = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.055, 0.008), patina);
+    axisPatina.name = 'first-stone-axis-patina';
+    axisPatina.position.set(0, 0.055, 0.013);
+    face.add(ring, oxidationSeam, axis, axisPatina);
+    mark.add(face);
+    this.root.add(mark);
+
+    const localAnchor = new THREE.Vector3(0, 0.06, signal.face * 0.27)
+      .applyQuaternion(signal.quaternion);
+    this.observationAnchors.firstStone = signal.position.clone().add(localAnchor);
   }
 
   /* --------------------------------------------------------------- bakes */

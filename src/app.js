@@ -33,7 +33,7 @@ import { DebugOverlay } from './debug.js';
  * stable for a while.
  */
 const TIERS = {
-  low: { dpr: 0.75, shadow: 1024, shadowDist: 45, aniso: 4 },
+  low: { dpr: 0.72, shadow: 1024, shadowDist: 45, aniso: 4 },
   medium: { dpr: 1.0, shadow: 1536, shadowDist: 60, aniso: 8 },
   high: { dpr: 1.0, shadow: 2048, shadowDist: 80, aniso: 16 },
   ultra: { dpr: 1.25, shadow: 3072, shadowDist: 100, aniso: 16 },
@@ -53,7 +53,10 @@ class Game {
     this._fpsT = 0;
     this._stableFor = 0;
     this._observationPoint = new THREE.Vector3();
-    this._observationProbe = { visible: false, distance: Infinity, centerDistance: Infinity };
+    this._observationProbe = {
+      visible: false, distance: Infinity, centerDistance: Infinity,
+      screenX: 0, screenY: 0,
+    };
 
     const hash = new URLSearchParams(location.hash.slice(1));
     this.pinnedTier = TIER_ORDER.includes(location.hash.slice(1)) ? location.hash.slice(1)
@@ -266,7 +269,7 @@ class Game {
     this.veg = new Vegetation(
       this.renderer, this.terrain, this.trail, undefined,
       this.ruins, this.collision,
-      this.mobileLike ? { densityScale: 0.62, atlasPx: 1024 } : undefined,
+      this.mobileLike ? { densityScale: 0.50, atlasPx: 768 } : undefined,
     );
     scene.add(this.veg.root);
 
@@ -554,6 +557,8 @@ class Game {
       result.visible = false;
       result.distance = Infinity;
       result.centerDistance = Infinity;
+      result.screenX = 0;
+      result.screenY = 0;
       return result;
     }
     result.distance = this.camera.position.distanceTo(point);
@@ -561,6 +566,8 @@ class Game {
     const w = Math.max(1, innerWidth);
     const h = Math.max(1, innerHeight);
     const short = Math.min(w, h);
+    result.screenX = this._observationPoint.x;
+    result.screenY = this._observationPoint.y;
     result.visible = this._observationPoint.z >= -1 && this._observationPoint.z <= 1
       && Math.abs(this._observationPoint.x) <= 1.08
       && Math.abs(this._observationPoint.y) <= 1.08;

@@ -31,11 +31,17 @@ const optics = await page.evaluate(() => ({
   tier: window.__game.tier,
   shutter: window.__game.atmos.grade.shutter,
   motionTaps: window.__game.atmos.grade.motionMat.uniforms.uTaps.value,
+  dofMaterialAllocated: !!window.__game.atmos.grade.dofMat,
+  pixelRatio: window.__game.renderer.getPixelRatio(),
+  vegetationDensity: window.__game.veg.densityScale,
+  leafAtlasPx: window.__game.veg.atlasPx,
   frameCap: window.__game.frameCap,
   adaptiveFrameCap: window.__game._adaptiveFrameCap,
 }));
 if (!optics.mobileLike || optics.tier !== 'low' || optics.shutter !== 0.22
-    || optics.motionTaps !== 4 || !optics.adaptiveFrameCap) {
+    || optics.motionTaps !== 4 || optics.dofMaterialAllocated || optics.pixelRatio !== 0.72
+    || optics.vegetationDensity !== 0.5 || optics.leafAtlasPx !== 768
+    || !optics.adaptiveFrameCap) {
   throw new Error(`Unexpected mobile response profile: ${JSON.stringify(optics)}`);
 }
 

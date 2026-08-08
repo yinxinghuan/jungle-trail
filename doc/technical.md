@@ -26,6 +26,7 @@
 - `public/poster.png`：1024×1024 正式英文 raster 海报。
 - `_qa/capture.mjs`、`_qa/ui/`：移动端状态截图脚本与首轮/复验证据。
 - `_qa/capture-clue.mjs`：第一处观察的附近、对准、完成、中文窄屏与 reduced-motion 自动断言和截图。
+- `_qa/capture-clue-material.mjs`：在 390×844 真实运行画面中断言古代合金嵌环与氧化缝存在，并捕获目标未被准星覆盖的材质证据。
 - `_qa/capture-navigation.mjs`：路径扶正、34 m 线索预告和离路恢复提示的数值断言与构图证据。
 - `_qa/playthrough-input.mjs`：不调用传送/自动行走 API，使用真实触控事件分别验证摇杆、冲刺和右侧转镜头。
 - `_production/poster-source.md`：正式海报提示词、来源、平台 transit 失败和双尺寸检查记录。
@@ -43,9 +44,9 @@
 
 ### 移动性能
 
-移动端保持相同种类、算法、种子与地标，但 `Vegetation` 使用 `densityScale: 0.62` 扩大抖动采样步长，将叶片图集从 2048² 降为 1024²、树皮图集从 1024² 降为 512²。最低后处理档关闭体积光步进、AO 和瀑布喷溅，仍保留核心材质、林冠光照、瀑布表面和颜色处理。
+移动端保持相同种类、算法、种子与地标，但 `Vegetation` 使用 `densityScale: 0.50` 扩大抖动采样步长，将叶片图集从 2048² 降为 768²、树皮图集从 1024² 降为 512²。渲染器像素比上限为 `0.72`；最低后处理档关闭景深、体积光步进、AO 和瀑布喷溅，泛光降为 4 级，仍保留核心材质、林冠光照、瀑布表面和颜色处理。
 
-`Grade` 的 low 档动态模糊由 8 taps / `1.0` 帧曝光降为 4 taps / `0.22` 帧曝光；medium 为 8 taps / `0.45` 帧，高与 ultra 保留原电影曝光。调整同时减少移动端全屏采样并缩短转镜后的视觉残留，不改变桌面 high 档基线。
+`Grade` 的 low 档动态模糊为 4 taps / `0.22` 帧曝光，景深 taps 为 0，因而不创建景深材质或运行该全屏通道；medium 为 8 taps / `0.45` 帧，高与 ultra 保留原电影曝光。运行断言确认 low 档为 `pixelRatio=0.72`、`densityScale=0.5`、`atlasPx=768` 且 `dofMaterialAllocated=false`，不改变桌面 high 档基线。
 
 ### 输入与碰撞
 
@@ -55,13 +56,13 @@
 
 ### 路径与首个线索视线
 
-`Trail.widthAt()` 把主要泥路半宽提高到约 `1.12 m`，地形 shader 使用更连续的边缘函数并把泥土反照率压到原来的 `86%`，使路在高亮叶片和阴影下仍有连续轮廓。`Vegetation` 在生成时建立从路径 `t=0.318` 到首块石头的视线段：高于 `1.2 m` 的灌木、棕榈、阔叶、幼树和藤类不会落在目标 `2.4 m` 或该段 `1.2 m` 的清障范围内；低矮地被仍保留，所以画面不会变成空走廊。
+`Trail.widthAt()` 把主要泥路半宽提高到约 `1.12 m`，地形 shader 使用更连续的边缘函数并把泥土反照率压到原来的 `86%`，使路在高亮叶片和阴影下仍有连续轮廓。`Vegetation` 在生成时建立从路径 `t=0.318` 到首块石头的视线段：高遮挡灌木、棕榈、阔叶、幼树和藤类不会落在目标 `3.4 m` 或该段 `1.6 m` 的清障范围内；低矮地被仍保留，所以画面不会变成空走廊。
 
 ### 第一处观察垂直切片
 
-`Ruins.observationAnchors.firstStone` 在生成 `t=0.356` 的直立加工石块时同步记录其语义世界坐标，避免 UI 重复猜测位置或遍历合并后的遗迹网格。`Game.observationProbe()` 使用可复用 `Vector3` 把该点投影到屏幕短边归一化坐标，并返回可见性、距离与中心偏差，不产生逐帧垃圾。
+`Ruins` 在 `t=0.356` 生成宽 `0.78 m`、高 `1.75 m` 的直立加工石碑，并额外挂接程序化 Torus/Box 几何组成的古代合金嵌环、轴线与绿锈缝。石碑主体仍进入合并石材网格，只有少量语义构件保留独立 Mesh；`observationAnchors.firstStone` 指向石碑下半部，避免中央观察环遮住上方实体嵌环。`Game.observationProbe()` 使用可复用 `Vector3` 投影语义点，并返回可见性、距离、中心偏差与屏幕方向，不产生逐帧垃圾。
 
-`src/main.js` 在玩家距离目标 `34 m` 时先触发一次非阻塞预告和 `Ambience.playClueHint()` 方位声；进入 `18 m` 后启用判定：首次进入短边 `9%` 中心半径并通过 `120 ms` 防抖后，连续累积 `1.1 s`；已经开始观察时允许在 `14%` 半径内继续，并在完全偏离后保留 `0.35 s` 宽限。若进入近距区域 `9 s` 仍未对准，观察环与文案只增强一次，不自动完成。冲刺、暂停、隐藏、离屏和入口预览均不累积。成功状态只保存在本次页面会话，更新 `线索 1/1`、显示非模态结论、触发轻触觉，并在音频图已准备好时调用 `Ambience.playDiscovery()` 播放两层短促正弦石质共鸣。
+`src/main.js` 在玩家距离目标 `38 m` 时先触发一次非阻塞预告和 `Ambience.playClueHint()` 方位声；进入 `22 m` 后启用判定：首次进入短边 `9%` 中心半径并通过 `120 ms` 防抖后，连续累积 `1.1 s`；已经开始观察时允许在 `14%` 半径内继续，并在完全偏离后保留 `0.35 s` 宽限。若进入近距区域 `4.5 s` 仍未对准，观察环外缘用 `--jt-clue-angle` 显示一枚指向目标的短刻度，并把文案明确为金属圆环石碑，不自动完成。冲刺、暂停、隐藏、离屏和入口预览均不累积。成功状态只保存在本次页面会话，更新 `线索 1/1`、显示非模态结论、触发轻触觉，并在音频图已准备好时调用 `Ambience.playDiscovery()` 播放两层短促正弦石质共鸣。
 
 ### 响应式布局
 
@@ -79,7 +80,7 @@ WebGL 画布随窗口尺寸更新相机和渲染目标。DOM HUD 直接使用安
 
 - 调整行走、跳跃、相机或触控：修改 `src/player/controller.js` 与 `src/main.js`。
 - 调整地标、完成阈值和旅程 UI：修改 `landmarkFor()`、`finishJourney()` 及 `src/i18n.js`。
-- 调整观察范围、预告范围、中心半径、稳定时长和回退：修改 `src/main.js` 的 `CLUE_*` 常量；更换目标主体时修改 `src/world/ruins.js` 的 `observationAnchors`，不要在 HUD 中硬编码世界坐标。
+- 调整观察范围、预告范围、中心半径、稳定时长和回退：修改 `src/main.js` 的 `CLUE_*` 常量；更换目标主体或合金嵌件时修改 `src/world/ruins.js` 的 `firstStoneSignal` / `observationAnchors`，不要在 HUD 中硬编码世界坐标。
 - 调整移动端扶正与离路提示：修改 `src/player/controller.js` 的 `setTrailAssist()` 合同和 `src/main.js` 的 `updateRouteCue()`；保持相机不被自动旋转。
 - 扩展第二、第三处观察：沿用 `Game.observationProbe()` 与同一 UI 状态合同，为门址和瀑布分别增加语义 anchor；完成三章前不增加排行榜或存档。
 - 调整移动性能：修改 `src/app.js` 的移动画质参数、`src/world/vegetation.js` 的 `densityScale/atlasPx`、`src/render/atmosphere.js` 与 `src/world/water.js` 的 tier 表。

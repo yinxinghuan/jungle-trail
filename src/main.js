@@ -80,8 +80,8 @@ let clueNearbyAt = 0;
 let clueHelped = false;
 let offTrailAt = 0;
 
-const CLUE_PREVIEW_RANGE = 34;
-const CLUE_RANGE = 18;
+const CLUE_PREVIEW_RANGE = 38;
+const CLUE_RANGE = 22;
 const CLUE_ALIGN_RADIUS = 0.09;
 const CLUE_BREAK_RADIUS = 0.14;
 const CLUE_CONFIRM_MS = 120;
@@ -186,6 +186,8 @@ function updateFirstClue(now, dt) {
   }
 
   ui.observation.hidden = false;
+  const clueAngle = Math.atan2(probe.screenX, -probe.screenY);
+  ui.observation.style.setProperty('--jt-clue-angle', `${clueAngle}rad`);
   const sprinting = game.walker.isSprinting;
   const centered = probe.visible && probe.centerDistance <= CLUE_ALIGN_RADIUS;
   const tracking = !sprinting && probe.visible
@@ -202,7 +204,7 @@ function updateFirstClue(now, dt) {
     if (!inGrace) setObservationProgress(clueProgress - dt * 0.85 / CLUE_HOLD_SECONDS);
   }
 
-  if (!tracking && !clueHelped && now - clueNearbyAt >= 9000) {
+  if (!tracking && !clueHelped && now - clueNearbyAt >= 4500) {
     clueHelped = true;
     try { game.ambience?.playClueHint?.(anchor); } catch (_) { /* audio is non-fatal */ }
   }

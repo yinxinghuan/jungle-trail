@@ -8,9 +8,11 @@
 | Entry frozen | `platform-layout-entry-frozen-390x844.png` | `platform-layout-entry-frozen-reduced-motion-320x568.png` | Pass; `running=false`, clear final frame |
 | Gameplay handoff | `platform-layout-gameplay-after-entry-390x844.png` | Completion capture also verifies short control-safe layout | Pass; `running=true`, HUD visible |
 | First trace nearby | `platform-layout-clue-nearby-390x844.png` | — | Pass; target range active, observation not auto-completed |
+| First trace guided | `platform-layout-clue-guided-390x844.png` | — | Pass; after 4.5 s, outer notch points toward the target and copy names the metal-ringed stone |
+| First trace alloy | `platform-layout-clue-alloy-390x844.png` | — | Pass; ancient alloy ring and oxidation seam are visible beside, not under, the centre reticle |
 | First trace aligned | `platform-layout-clue-aligned-390x844.png` | `platform-layout-clue-aligned-reduced-motion-320x568.png` | Pass; partial progress between 0 and 1 asserted |
 | First trace recorded | `platform-layout-clue-recorded-390x844.png` | `platform-layout-clue-recorded-reduced-motion-320x568.png` | Pass; `recorded`, progress 1, count 1/1 asserted |
-| First trace advance signal | `platform-layout-clue-signal-390x844.png` | — | Pass; one-shot 34 m preview and positional cue asserted |
+| First trace advance signal | `platform-layout-clue-signal-390x844.png` | — | Pass; one-shot 38 m preview and positional cue asserted |
 | Off-trail recovery | `platform-layout-route-recovery-390x844.png` | — | Pass; 3.2 m lateral displacement yields correct view-relative direction |
 | Natural touch segment | `platform-layout-natural-input-segment-390x844.png` | — | Pass; real touch events advance, engage sprint and rotate camera without teleport/auto-walk |
 | Reduced look blur | `platform-layout-look-motion-low-blur-390x844.png` | `platform-layout-look-motion-low-blur-320x568.png` | Pass; low tier is 4 taps / 0.22-frame shutter and path edges remain readable during drag |
@@ -100,6 +102,20 @@
 - Impact: camera rotation looked like it continued after the thumb moved, reducing confidence when following the trail or centering the stone.
 - Fix: mobile now starts with a 60 fps target; low tier uses 4 motion samples and a `0.22`-frame shutter. If low tier remains below roughly 39 fps for `1.6 s`, the renderer falls back to 30 fps instead of repeatedly missing a 60 fps budget.
 - Recheck: runtime assertions report `tier=low`, `frameCap=60`, `shutter=0.22`, `motionTaps=4`; a deterministic slow-device probe falls back to `30`. Matched 390×844 moving/settled and 320×568 moving frames retain readable vegetation and trail edges.
+
+### P1 — First trace matched the forest too closely
+
+- Evidence: user online test plus the earlier aligned captures, where the upright stone used the same wet grey-green surface language as every ruin and the delayed help remained generic for 9 seconds.
+- Impact: the teaching target required searching foliage rather than recognizing an intentional anomaly, so difficulty came from weak visual signal and UI ambiguity instead of observation skill.
+- Fix: widened and raised the standing stone, expanded its low-vegetation clearing to `3.4 m`, and added a procedural warm ancient-alloy ring with a dark green oxidation seam. The physical ring sits above the semantic gaze anchor, so the 56 px HUD reticle cannot cover it. Preview/near ranges are now `38/22 m`; after `4.5 s`, a small outer notch supplies direction and copy names the metal-ringed stone.
+- Recheck: `platform-layout-clue-alloy-390x844.png` shows the warm/dark metal contrast clearly against the stone; `capture-clue.mjs` completes the interaction at 390×844 and 320×568, and its helped-state assertion verifies both the directional angle and specific copy.
+
+### P1 — Low tier spent bandwidth on low-value softness and density
+
+- Evidence: user online report of low frame rate after motion blur had already been reduced.
+- Impact: the mobile tier continued sampling full-screen depth of field and retained `62%` vegetation density while the player needed sharp path and clue edges.
+- Fix: mobile vegetation density is `50%`, the procedural leaf atlas is `768²`, pixel ratio is capped at `0.72`, bloom uses 4 levels, and low-tier depth of field is completely unallocated. Motion remains the already accepted 4 taps / `0.22` frame shutter.
+- Recheck: runtime assertions report `pixelRatio=0.72`, `vegetationDensity=0.5`, `leafAtlasPx=768`, `dofMaterialAllocated=false`, and preserve the adaptive `60 → 30` fallback. Motion/settled captures remain readable at both target widths.
 
 ## Scores after recheck
 
