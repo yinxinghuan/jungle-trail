@@ -25,10 +25,12 @@ const ui = {
   mapPanel: $('map-panel'), mapBackdrop: $('map-backdrop'), mapClose: $('map-close'),
   mapEyebrow: $('map-eyebrow'), mapTitle: $('map-title'), mapSubtitle: $('map-subtitle'),
   mapCloseLabel: $('map-close-label'), mapRoute: $('map-route-base'),
-  mapRouteProgress: $('map-route-progress'), mapPlayer: $('map-player'),
+  mapRouteCorridor: $('map-route-corridor'), mapRouteProgress: $('map-route-progress'), mapPlayer: $('map-player'),
+  mapScaleLine: $('map-scale-line'), mapScaleLabel: $('map-scale-label'),
+  mapFolioNumber: $('map-folio-number'), mapSealNumber: $('map-seal-number'),
   mapEvidenceNodes: $('map-evidence-nodes'), mapLandmarkNodes: $('map-landmark-nodes'),
-  mapCanopyLabel: $('map-canopy-label'), mapWaterLabel: $('map-water-label'),
-  mapRuinsLabel: $('map-ruins-label'), mapObjectiveLabel: $('map-objective-label'),
+  mapCanopyLabel: $('map-canopy-label'),
+  mapObjectiveLabel: $('map-objective-label'),
   mapObjective: $('map-objective'), mapEvidenceList: $('map-evidence-list'),
   mapSectorLabel: $('map-sector-label'), mapSector: $('map-sector'),
   mapTracesLabel: $('map-traces-label'),
@@ -75,8 +77,6 @@ ui.mapSectorLabel.textContent = t('currentSector');
 ui.mapTracesLabel.textContent = t('surveyTraces');
 ui.mapExpeditionLabel.textContent = t('expeditionRoute');
 ui.mapCanopyLabel.textContent = t('mapCanopy');
-ui.mapWaterLabel.textContent = t('mapWater');
-ui.mapRuinsLabel.textContent = t('mapRuins');
 ui.mapRoute.closest('svg').setAttribute('aria-label', t('mapAria'));
 const progressStore = new ProgressStore();
 const bootParams = new URLSearchParams(location.search);
@@ -174,6 +174,8 @@ function formatTime(seconds) {
 }
 
 const LANDMARK_T = [0.02, 0.27, 0.74, 0.86, 0.955];
+const MAP_FRAME = { left: 38, right: 222, top: 42, bottom: 382 };
+let mapProjection = null;
 
 function landmarkFor(tValue) {
   let found = 0;
@@ -191,10 +193,55 @@ function evidenceTrailT(contract, index) {
   return game.trail.nearest(anchor.x, anchor.z, {}).t;
 }
 
+function updateMapProjection() {
+  if (!game?.trail?.samples?.length) return;
+  const endT = chapter.endT;
+  const source = game.trail.samples.filter((sample) => sample.t <= endT);
+  const samples = source.filter((_, index) => index % 8 === 0);
+  if (samples.at(-1) !== source.at(-1)) samples.push(source.at(-1));
+  const minX = Math.min(...source.map((sample) => sample.x));
+  const maxX = Math.max(...source.map((sample) => sample.x));
+  const minZ = Math.min(...source.map((sample) => sample.z));
+  const maxZ = Math.max(...source.map((sample) => sample.z));
+  const width = MAP_FRAME.right - MAP_FRAME.left;
+  const height = MAP_FRAME.bottom - MAP_FRAME.top;
+  const scale = Math.min(width / Math.max(1, maxX - minX + 24), height / Math.max(1, maxZ - minZ));
+  const centreX = (minX + maxX) * 0.5;
+  const projectedWidth = (maxX - minX) * scale;
+  const projectedHeight = (maxZ - minZ) * scale;
+  const originX = (MAP_FRAME.left + MAP_FRAME.right) * 0.5 - centreX * scale;
+  const originY = MAP_FRAME.top + (height - projectedHeight) * 0.5;
+  mapProjection = {
+    scale,
+    point(x, z) {
+      return { x: originX + x * scale, y: originY + (z - minZ) * scale };
+    },
+  };
+  const routeD = samples.map((sample, index) => {
+    const point = mapProjection.point(sample.x, sample.z);
+    return `${index ? 'L' : 'M'}${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+  }).join('');
+  ui.mapRoute.setAttribute('d', routeD);
+  ui.mapRouteCorridor.setAttribute('d', routeD);
+  ui.mapRouteProgress.setAttribute('d', routeD);
+  const scaleMetres = 100;
+  const scaleWidth = scaleMetres * scale;
+  ui.mapScaleLine.setAttribute('d', `M0 0v-5m0 3h${scaleWidth.toFixed(1)}m0-3v5`);
+  ui.mapScaleLabel.setAttribute('x', (scaleWidth * 0.5).toFixed(1));
+  ui.mapScaleLabel.textContent = `${scaleMetres} m`;
+}
+
 function mapPointAt(tValue) {
-  const routeLength = ui.mapRoute.getTotalLength();
-  const relative = Math.min(1, Math.max(0, tValue / Math.max(0.01, objective.endT)));
-  return ui.mapRoute.getPointAtLength(routeLength * relative);
+  if (!mapProjection || !game?.trail) return { x: 130, y: 382 };
+  const point = game.trail.pointAt(Math.min(chapter.endT, Math.max(0, tValue)));
+  return mapProjection.point(point.x, point.z);
+}
+
+function evidenceMapPoint(contract, index) {
+  const anchor = game?.observationAnchors?.[contract.anchor];
+  return anchor && mapProjection
+    ? mapProjection.point(anchor.x, anchor.z)
+    : mapPointAt(evidenceTrailT(contract, index));
 }
 
 function appendLandmarkGlyph(group, index) {
@@ -229,10 +276,10 @@ function renderLandmarks(trailT) {
     appendLandmarkGlyph(group, index);
     const labelLayout = [
       { left: false, y: 4 },
-      { left: true, y: 8 },
-      { left: false, y: 18 },
       { left: true, y: 4 },
-      { left: false, y: -10 },
+      { left: false, y: 15 },
+      { left: true, y: 2 },
+      { left: false, y: -13 },
     ][index];
     const leftSide = labelLayout.left;
     const sign = leftSide ? -1 : 1;
@@ -257,10 +304,11 @@ function renderLandmarks(trailT) {
 
 function renderMap() {
   if (!game) return;
+  updateMapProjection();
   const trailT = game.walker.trailT;
   const routeLength = ui.mapRoute.getTotalLength();
-  const relative = Math.min(1, Math.max(0, trailT / Math.max(0.01, objective.endT)));
-  const playerPoint = mapPointAt(trailT);
+  const relative = Math.min(1, Math.max(0, trailT / Math.max(0.01, chapter.endT)));
+  const playerPoint = mapProjection.point(game.walker.pos.x, game.walker.pos.z);
   const aheadPoint = mapPointAt(Math.min(objective.endT, trailT + 0.008));
   const tangent = game.trail.tangentAt(trailT);
   const routeYaw = Math.atan2(-tangent.x, -tangent.z);
@@ -273,11 +321,13 @@ function renderMap() {
   ui.mapRouteProgress.style.strokeDasharray = `${(routeLength * relative).toFixed(2)} ${routeLength.toFixed(2)}`;
   ui.mapTitle.textContent = t(chapter.titleKey);
   ui.mapSubtitle.textContent = `${t('chapterLabel', { n: chapter.number })} · ${Math.round(trailT * 100)}%`;
+  ui.mapFolioNumber.textContent = String(chapter.number);
+  ui.mapSealNumber.textContent = String(chapter.number).padStart(2, '0');
   renderLandmarks(trailT);
 
   ui.mapEvidenceNodes.replaceChildren();
   ui.mapEvidenceList.replaceChildren(...investigation.trackers.map((tracker, index) => {
-    const point = mapPointAt(evidenceTrailT(tracker.contract, index));
+    const point = evidenceMapPoint(tracker.contract, index);
     const diamond = svgNode('rect');
     const isCurrent = index === investigation.activeIndex;
     diamond.setAttribute('x', String(point.x - 6));

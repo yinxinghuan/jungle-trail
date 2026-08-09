@@ -41,12 +41,16 @@ for (const target of targets) {
     traceCount: document.querySelectorAll('#map-evidence-list li').length,
     landmarkCount: document.querySelectorAll('#map-landmark-nodes .jt-map__landmark').length,
     nextLandmark: document.querySelector('#map-objective').textContent,
+    routePointCount: (document.querySelector('#map-route-base').getAttribute('d').match(/L/g) || []).length,
+    routePath: document.querySelector('#map-route-base').getAttribute('d'),
+    playerTransform: document.querySelector('#map-player').getAttribute('transform'),
     sheetOverflowX: document.querySelector('.jt-map__sheet').scrollWidth
       - document.querySelector('.jt-map__sheet').clientWidth,
     sheetScrollLeft: document.querySelector('.jt-map__sheet').scrollLeft,
   }));
   if (!state.mapVisible || !state.paused || state.traceCount !== 3
       || state.landmarkCount !== 5 || !state.nextLandmark
+      || state.routePointCount < 50 || !state.playerTransform
       || state.overflowX > 0 || state.overflowY > 0
       || state.sheetScrollLeft !== 0
       || state.controls.some((control) => control.width < 44 || control.height < 44)) {
@@ -64,7 +68,8 @@ for (const target of targets) {
       sector: document.querySelector('#map-sector').textContent,
       playerTransform: document.querySelector('#map-player').getAttribute('transform'),
     }));
-    if (!progressed.nextLandmark || progressed.playerTransform.includes('130.00 364.00')) {
+    const progressedY = Number(progressed.playerTransform.match(/translate\([^ ]+ ([^)]+)/)?.[1]);
+    if (!progressed.nextLandmark || !Number.isFinite(progressedY) || progressedY > 150) {
       throw new Error(`Progressed map did not update: ${JSON.stringify(progressed)}`);
     }
     console.log(JSON.stringify({ target, progressed }));

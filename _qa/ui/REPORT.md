@@ -8,8 +8,8 @@
 | Entry frozen | `platform-layout-entry-frozen-390x844.png` | `platform-layout-entry-frozen-reduced-motion-320x568.png` | Pass; `running=false`, clear final frame |
 | Gameplay handoff | `platform-layout-gameplay-after-entry-390x844.png` | Completion capture also verifies short control-safe layout | Pass; `running=true`, HUD visible |
 | Field instrument HUD | `platform-layout-field-hud-390x844.png` | `platform-layout-field-hud-320x568.png` | Pass; chapter, landmark, route, evidence and tool rail remain readable without covering the trail |
-| Live field map | `platform-layout-field-map-390x844.png` | `platform-layout-field-map-320x568.png` | Pass; real position/heading, five landmarks, terrain references, three evidence states and chapter rail; paused, no overflow |
-| Progressed field map | `platform-layout-field-map-ruins-390x844.png` | narrow map uses the same responsive SVG | Pass; at `t=0.78`, sector becomes Ruins approach, next landmark becomes Water gate (~20 m), player transform updates |
+| Live field map | `platform-layout-field-map-390x844.png` | `platform-layout-field-map-320x568.png` | Pass; fold-out survey sheet, real sampled route/position/heading, five landmarks, terrain references, three evidence states and chapter rail; paused, no overflow |
+| Progressed field map | `platform-layout-field-map-ruins-390x844.png` | narrow map uses the same responsive SVG | Pass; at `t=0.78`, sector becomes Ruins approach, next landmark becomes Water gate (~20 m), player moves to the real northern ruins position |
 | First trace nearby | `platform-layout-clue-nearby-390x844.png` | — | Pass; target range active, observation not auto-completed |
 | First trace guided | `platform-layout-clue-guided-390x844.png` | — | Pass; after 4.5 s, outer notch points toward the target and copy names the metal-ringed stone |
 | First trace alloy | `platform-layout-clue-alloy-390x844.png` | — | Pass; ancient alloy ring and oxidation seam are visible beside, not under, the centre reticle |
@@ -49,6 +49,22 @@
 - Impact: opening the map did not improve orientation and read as a decorative level-select illustration.
 - Fix: added five real chapter landmarks at the same progress thresholds used by the HUD, distinct landmark glyphs, dense-canopy regions, stream, ruin footprint, terminal pool, contours, grid, north marker and scale. The live readout now reports current sector, next named landmark and estimated remaining distance; the player pin rotates relative to the trail.
 - Recheck: automated states assert five landmarks and three evidence pins. At the trailhead the map reports Deep forest (~110 m); at `t=0.78` it reports Ruins approach and Water gate (~20 m), with a changed translated/rotated player transform.
+
+### P1 — Decorative route shape was not a spatially accurate map
+
+- Evidence: the map released in commit `eecfb9b` used one fixed S-shaped SVG for every chapter.
+- Observation: evidence and player state were reduced to progress `t` and placed along that illustration; route order and distance were useful, but bends, cross-track position and chapter-to-chapter route variants were not represented.
+- Impact: the interface looked more map-like than it actually was and could teach a false mental model of the forest.
+- Fix: the map now samples the current chapter's real `Trail.samples`, preserves one metre scale on both axes, fixes world `-Z` as north, and projects `walker.pos` plus evidence anchor `x/z` directly. The static stream illustration was removed because it did not have matching world-coordinate data.
+- Recheck: the harness asserts more than 50 line segments in the generated route. The start pin appears at the southern trailhead; at `t=0.78` the pin is above SVG `y=150` in the northern ruins sector. The 100 m scale uses the same projection scale.
+
+### P1 — Map surface read as a rough utility panel
+
+- Evidence: the first landmark-rich map pair from commit `eecfb9b`.
+- Observation: the clipped paper, two-column split and plain text list had useful content but little material hierarchy; the narrow map column also reduced the value of newly added references.
+- Impact: it felt one finish level below the procedural world and did not match the user's field-map references.
+- Fix: changed the structure to a single fold-out survey sheet with four paper creases, fibrous print texture, double registration frame, folio mark and survey seal. The map is full-width; objective, sector and traces form a compact measured band beneath it.
+- Recheck: matched 390×844 and 320×568 captures show the full true route, readable English/Chinese labels, no page overflow, zero horizontal sheet scroll and all controls at least 44 px.
 
 ### P1 — Upper landmark labels overlapped
 
