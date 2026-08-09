@@ -8,8 +8,8 @@
 | Entry frozen | `platform-layout-entry-frozen-390x844.png` | `platform-layout-entry-frozen-reduced-motion-320x568.png` | Pass; `running=false`, clear final frame |
 | Gameplay handoff | `platform-layout-gameplay-after-entry-390x844.png` | Completion capture also verifies short control-safe layout | Pass; `running=true`, HUD visible |
 | Field instrument HUD | `platform-layout-field-hud-390x844.png` | `platform-layout-field-hud-320x568.png` | Pass; chapter, landmark, route, evidence and tool rail remain readable without covering the trail |
-| Live field map | `platform-layout-field-map-390x844.png` | `platform-layout-field-map-320x568.png` | Pass; fold-out survey sheet, real sampled route/position/heading, five landmarks, terrain references, three evidence states and chapter rail; paused, no overflow |
-| Progressed field map | `platform-layout-field-map-ruins-390x844.png` | narrow map uses the same responsive SVG | Pass; at `t=0.78`, sector becomes Ruins approach, next landmark becomes Water gate (~20 m), player moves to the real northern ruins position |
+| Live field map | `platform-layout-field-map-390x844.png` | `platform-layout-field-map-320x568.png` | Pass; map occupies the sheet, real sampled route/position/heading, five landmarks, terrain references, three evidence nodes, one objective and one trace count; paused, no overflow |
+| Progressed field map | `platform-layout-field-map-ruins-390x844.png` | narrow map uses the same responsive SVG | Pass; at `t=0.78`, next landmark becomes Water gate (~20 m), the traced route changes to brass and the player moves to the real northern ruins position |
 | First trace nearby | `platform-layout-clue-nearby-390x844.png` | — | Pass; target range active, observation not auto-completed |
 | First trace guided | `platform-layout-clue-guided-390x844.png` | — | Pass; after 4.5 s, outer notch points toward the target and copy names the metal-ringed stone |
 | First trace alloy | `platform-layout-clue-alloy-390x844.png` | — | Pass; ancient alloy ring and oxidation seam are visible beside, not under, the centre reticle |
@@ -24,7 +24,7 @@
 | Pause | `platform-layout-pause-390x844.png` | Panel width is fluid with 18 px side inset | Pass |
 | Completion first pass | `platform-layout-complete-first-pass-390x844.png` | `platform-layout-complete-first-pass-320x568.png` | P1 found |
 | Completion recheck | `platform-layout-complete-390x844.png` | `platform-layout-complete-320x568.png` | Pass |
-| External guest | `external-guest-entry-preview-motion-390x844.png` | — | Pass; managed CTA remains usable over live entry |
+| External guest | `external-guest-entry-preview-motion-390x844.png`, `external-guest-field-map-390x844.png` | — | Pass; managed CTA remains visible and the map route, close control and objective remain usable beneath the external-only overlay |
 
 ## Findings and fixes
 
@@ -73,6 +73,22 @@
 - Impact: the surface implied a page-turning function that does not exist and competed visually with the true route running near the centre.
 - Fix: removed the centre spine, centre notches and page-to-page colour split. The paper now has two equally light vertical fold marks plus one shallow horizontal fold, matching a single field map.
 - Recheck: matched 390×844 and 320×568 captures retain the continuous outer frame and complete route without a dark line underneath it.
+
+### P1 — Map information density forced important text too small
+
+- Evidence: the user capture from commit `c9da7b5` and the matched field-map captures.
+- Observation: current sector, next landmark, three textual trace states and the four-chapter rail repeated information already available in the scene, HUD and entry screen. Utility copy fell to 7–10 px on the narrow viewport.
+- Impact: the eye had no clear order and the map felt like a report dashboard instead of a quick orientation tool.
+- Fix: removed the repeated sector, per-trace text list and chapter rail. The page now answers only position, route, next landmark and total traces; the route drawing receives roughly 80% of the sheet, the objective is 15–16 px and the trace counter is 11–12 px.
+- Recheck: matched 390×844 and 320×568 captures show one compact footer band, no horizontal or document overflow, five landmark nodes, three evidence nodes and controls at least 44 px.
+
+### P1 — Fold marks had no broad light-facing surfaces
+
+- Evidence: the user capture from commit `c9da7b5`.
+- Observation: two low-opacity lines described crease positions, but the paper on both sides had nearly the same value.
+- Impact: the sheet read as one flat panel rather than a field map that had been folded and opened.
+- Fix: rebuilt the material as three broad vertical facets with alternating light exposure, a narrow highlight/shadow pair at each valley/ridge and a weaker horizontal fold. The facets affect the whole paper surface while the border stays continuous, so no crease reads as a book spine.
+- Recheck: both target captures visibly preserve the light–dark–light panel rhythm through the header, route and footer; the horizontal fold remains subordinate to route information.
 
 ### P1 — Upper landmark labels overlapped
 

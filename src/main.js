@@ -27,14 +27,10 @@ const ui = {
   mapCloseLabel: $('map-close-label'), mapRoute: $('map-route-base'),
   mapRouteCorridor: $('map-route-corridor'), mapRouteProgress: $('map-route-progress'), mapPlayer: $('map-player'),
   mapScaleLine: $('map-scale-line'), mapScaleLabel: $('map-scale-label'),
-  mapFolioNumber: $('map-folio-number'), mapSealNumber: $('map-seal-number'),
   mapEvidenceNodes: $('map-evidence-nodes'), mapLandmarkNodes: $('map-landmark-nodes'),
   mapCanopyLabel: $('map-canopy-label'),
   mapObjectiveLabel: $('map-objective-label'),
-  mapObjective: $('map-objective'), mapEvidenceList: $('map-evidence-list'),
-  mapSectorLabel: $('map-sector-label'), mapSector: $('map-sector'),
-  mapTracesLabel: $('map-traces-label'),
-  mapExpeditionLabel: $('map-expedition-label'), mapChapters: $('map-chapters'),
+  mapObjective: $('map-objective'), mapTraceCount: $('map-trace-count'),
   pausePanel: $('pause-panel'), pauseTitle: $('pause-title'), resume: $('resume-button'), trail: $('trail-button'),
   mode: $('mode-button'),
   complete: $('complete-panel'), completeTitle: $('complete-title'), completeTime: $('complete-time'),
@@ -73,9 +69,6 @@ ui.mapEyebrow.textContent = t('fieldMap');
 ui.mapCloseLabel.textContent = t('close');
 ui.mapClose.setAttribute('aria-label', t('closeMap'));
 ui.mapObjectiveLabel.textContent = t('currentObjective');
-ui.mapSectorLabel.textContent = t('currentSector');
-ui.mapTracesLabel.textContent = t('surveyTraces');
-ui.mapExpeditionLabel.textContent = t('expeditionRoute');
 ui.mapCanopyLabel.textContent = t('mapCanopy');
 ui.mapRoute.closest('svg').setAttribute('aria-label', t('mapAria'));
 const progressStore = new ProgressStore();
@@ -299,7 +292,6 @@ function renderLandmarks(trailT) {
 
   const distance = Math.max(0, Math.round((LANDMARK_T[next] - trailT) * game.trail.length / 5) * 5);
   ui.mapObjective.textContent = `${fullNames[next]} · ${t(distance > 0 ? 'distanceRemaining' : 'destinationReached', { n: distance })}`;
-  ui.mapSector.textContent = fullNames[current];
 }
 
 function renderMap() {
@@ -321,12 +313,10 @@ function renderMap() {
   ui.mapRouteProgress.style.strokeDasharray = `${(routeLength * relative).toFixed(2)} ${routeLength.toFixed(2)}`;
   ui.mapTitle.textContent = t(chapter.titleKey);
   ui.mapSubtitle.textContent = `${t('chapterLabel', { n: chapter.number })} · ${Math.round(trailT * 100)}%`;
-  ui.mapFolioNumber.textContent = String(chapter.number);
-  ui.mapSealNumber.textContent = String(chapter.number).padStart(2, '0');
   renderLandmarks(trailT);
 
   ui.mapEvidenceNodes.replaceChildren();
-  ui.mapEvidenceList.replaceChildren(...investigation.trackers.map((tracker, index) => {
+  investigation.trackers.forEach((tracker, index) => {
     const point = evidenceMapPoint(tracker.contract, index);
     const diamond = svgNode('rect');
     const isCurrent = index === investigation.activeIndex;
@@ -347,33 +337,9 @@ function renderMap() {
     }
     ui.mapEvidenceNodes.append(diamond);
 
-    const item = document.createElement('li');
-    item.className = tracker.recorded ? 'is-recorded' : isCurrent ? 'is-current' : '';
-    item.textContent = t('mapTrace', {
-      n: String(index + 1).padStart(2, '0'),
-      status: t(tracker.recorded ? 'traceRecorded' : isCurrent ? 'traceCurrent' : 'traceUnknown'),
-    });
-    return item;
-  }));
-
-  ui.mapChapters.replaceChildren(...CHAPTERS.map((item) => {
-    const unlocked = unlockAll || progressStore.value.unlocked.includes(item.id);
-    const chapterComplete = !!progressStore.value.completed[item.id];
-    const li = document.createElement('li');
-    li.className = [unlocked && 'is-unlocked', item.id === chapter.id && 'is-current', chapterComplete && 'is-complete'].filter(Boolean).join(' ');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.disabled = !unlocked || item.id === chapter.id;
-    button.innerHTML = `<b>${['I', 'II', 'III', 'IV'][item.number - 1]}</b><span>${unlocked ? t(item.titleKey) : t('locked')}</span>`;
-    button.setAttribute('aria-label', `${t('chapterLabel', { n: item.number })} · ${unlocked ? t(item.titleKey) : t('locked')}`);
-    if (unlocked && item.id !== chapter.id) button.addEventListener('click', () => {
-      const url = new URL(location.href);
-      url.searchParams.set('chapter', item.id);
-      location.assign(url);
-    });
-    li.append(button);
-    return li;
-  }));
+  });
+  const recorded = investigation.trackers.filter((tracker) => tracker.recorded).length;
+  ui.mapTraceCount.textContent = `${t('surveyTraces')} ${recorded}/${investigation.trackers.length}`;
 }
 
 function openMap() {

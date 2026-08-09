@@ -204,7 +204,6 @@
     <div id="map-backdrop" class="jt-map__backdrop" aria-hidden="true"></div>
     <article class="jt-map__sheet">
       <span class="jt-map__cover" aria-hidden="true"></span>
-      <span class="jt-map__folio" aria-hidden="true">JT · 0<span id="map-folio-number">1</span></span>
       <header class="jt-map__header">
         <div class="jt-map__title-block">
           <span class="jt-map__crest" aria-hidden="true">
@@ -218,7 +217,7 @@
         </div>
         <button id="map-close" class="jt-map__close" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
-          <span id="map-close-label"></span>
+          <span id="map-close-label" class="jt-visually-hidden"></span>
         </button>
       </header>
       <div class="jt-map__survey">
@@ -244,20 +243,14 @@
           <g class="jt-map__scale" transform="translate(22 405)" aria-hidden="true"><path id="map-scale-line" d="M0 0v-5m0 3h58m0-3v5"/><text id="map-scale-label" x="29" y="11" text-anchor="middle">100 m</text></g>
           <text id="map-canopy-label" class="jt-map__feature-label" x="41" y="321"></text>
         </svg>
-        <aside class="jt-map__legend">
-          <div class="jt-map__legend-seal" aria-hidden="true"><span id="map-seal-number">01</span><i></i></div>
+        <aside class="jt-map__brief">
+          <div class="jt-map__next">
           <p id="map-objective-label" class="jt-map__legend-title"></p>
           <p id="map-objective" class="jt-map__objective"></p>
-          <p id="map-sector-label" class="jt-map__legend-title"></p>
-          <p id="map-sector" class="jt-map__sector"></p>
-          <p id="map-traces-label" class="jt-map__legend-title"></p>
-          <ul id="map-evidence-list" class="jt-map__evidence-list"></ul>
+          </div>
+          <p id="map-trace-count" class="jt-map__trace-count"></p>
         </aside>
       </div>
-      <footer class="jt-map__footer">
-        <p id="map-expedition-label" class="jt-map__footer-label"></p>
-        <ol id="map-chapters" class="jt-map__chapters"></ol>
-      </footer>
     </article>
   </section>
 

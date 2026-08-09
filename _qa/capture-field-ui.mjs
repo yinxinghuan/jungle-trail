@@ -9,10 +9,12 @@ const shot = (name) => fileURLToPath(new URL(name, root));
 const browser = await chromium.launch({ headless: true });
 const requestedWidth = Number(process.argv[2] || 0);
 const mapOnly = process.argv.includes('--map-only');
+const externalGuest = process.argv.includes('--external-guest');
+const evidencePrefix = externalGuest ? 'external-guest' : 'platform-layout';
 const targets = [
   { width: 390, height: 844, locale: 'en' },
   { width: 320, height: 568, locale: 'zh' },
-].filter((target) => !requestedWidth || target.width === requestedWidth);
+].filter((target) => (!requestedWidth || target.width === requestedWidth) && (!externalGuest || target.width === 390));
 for (const target of targets) {
   const context = await browser.newContext({
     viewport: { width: target.width, height: target.height },
@@ -22,14 +24,15 @@ for (const target of targets) {
   await page.addInitScript((locale) => localStorage.setItem('game_locale', locale), target.locale);
   await page.goto('http://127.0.0.1:4173/#manual', { waitUntil: 'domcontentloaded' });
   await page.locator('#sleeping[data-preview-state="frozen"]').waitFor({ state: 'visible', timeout: 120_000 });
-  await page.addStyleTag({ content: '#alteru-guest-banner,#alteru-guest-login{display:none!important}' });
+  if (externalGuest) await page.addStyleTag({ content: '#alteru-guest-login{display:none!important}' });
+  else await page.addStyleTag({ content: '#alteru-guest-banner,#alteru-guest-login{display:none!important}' });
   await page.locator('#start-button').click();
   await page.locator('#sleeping').waitFor({ state: 'hidden', timeout: 120_000 });
   await page.waitForTimeout(500);
-  if (!mapOnly) await page.screenshot({ path: shot(`platform-layout-field-hud-${target.width}x${target.height}.png`), fullPage: true, timeout: 120_000 });
+  if (!mapOnly) await page.screenshot({ path: shot(`${evidencePrefix}-field-hud-${target.width}x${target.height}.png`), fullPage: true, timeout: 120_000 });
   await page.evaluate(() => document.querySelector('#map-button').click());
   await page.locator('#map-panel').waitFor({ state: 'visible' });
-  await page.screenshot({ path: shot(`platform-layout-field-map-${target.width}x${target.height}.png`), fullPage: true, timeout: 120_000 });
+  await page.screenshot({ path: shot(`${evidencePrefix}-field-map-${target.width}x${target.height}.png`), fullPage: true, timeout: 120_000 });
   const state = await page.evaluate(() => ({
     mapVisible: !document.querySelector('#map-panel').hidden,
     paused: window.__game.paused,
@@ -38,7 +41,8 @@ for (const target of targets) {
     mapRect: document.querySelector('.jt-map__sheet').getBoundingClientRect().toJSON(),
     overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     overflowY: document.documentElement.scrollHeight - document.documentElement.clientHeight,
-    traceCount: document.querySelectorAll('#map-evidence-list li').length,
+    traceCount: document.querySelectorAll('#map-evidence-nodes .jt-map__evidence').length,
+    traceSummary: document.querySelector('#map-trace-count').textContent,
     landmarkCount: document.querySelectorAll('#map-landmark-nodes .jt-map__landmark').length,
     nextLandmark: document.querySelector('#map-objective').textContent,
     routePointCount: (document.querySelector('#map-route-base').getAttribute('d').match(/L/g) || []).length,
@@ -49,7 +53,7 @@ for (const target of targets) {
     sheetScrollLeft: document.querySelector('.jt-map__sheet').scrollLeft,
   }));
   if (!state.mapVisible || !state.paused || state.traceCount !== 3
-      || state.landmarkCount !== 5 || !state.nextLandmark
+      || state.landmarkCount !== 5 || !state.nextLandmark || !state.traceSummary.includes('/3')
       || state.routePointCount < 50 || !state.playerTransform
       || state.overflowX > 0 || state.overflowY > 0
       || state.sheetScrollLeft !== 0
@@ -57,7 +61,7 @@ for (const target of targets) {
     throw new Error(`Field UI contract failed at ${target.width}x${target.height}: ${JSON.stringify(state)}`);
   }
   console.log(JSON.stringify({ target, state }));
-  if (target.width === 390) {
+  if (target.width === 390 && !externalGuest) {
     await page.evaluate(() => document.querySelector('#map-close').click());
     await page.evaluate(() => window.__game.goTo(0.78));
     await page.evaluate(() => document.querySelector('#map-button').click());
@@ -65,7 +69,7 @@ for (const target of targets) {
     await page.screenshot({ path: shot('platform-layout-field-map-ruins-390x844.png'), fullPage: true, timeout: 120_000 });
     const progressed = await page.evaluate(() => ({
       nextLandmark: document.querySelector('#map-objective').textContent,
-      sector: document.querySelector('#map-sector').textContent,
+      traceSummary: document.querySelector('#map-trace-count').textContent,
       playerTransform: document.querySelector('#map-player').getAttribute('transform'),
     }));
     const progressedY = Number(progressed.playerTransform.match(/translate\([^ ]+ ([^)]+)/)?.[1]);
