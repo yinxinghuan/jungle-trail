@@ -62,6 +62,10 @@ class Game {
       visible: false, distance: Infinity, centerDistance: Infinity,
       screenX: 0, screenY: 0, bearing: 0,
     };
+    this._guidanceProbe = {
+      visible: false, distance: Infinity, centerDistance: Infinity,
+      screenX: 0, screenY: 0, bearing: 0,
+    };
     this.chapter = chapterById(chapterId);
 
     const hash = new URLSearchParams(location.hash.slice(1));
@@ -567,8 +571,7 @@ class Game {
    * The result object is reused so the HUD can sample it every frame without
    * producing garbage or walking the merged ruin geometry.
    */
-  observationProbe(point) {
-    const result = this._observationProbe;
+  observationProbe(point, result = this._observationProbe) {
     if (!point) {
       result.visible = false;
       result.distance = Infinity;
@@ -600,6 +603,10 @@ class Game {
       this._observationPoint.y * h * 0.5 / short,
     );
     return result;
+  }
+
+  guidanceProbe(point) {
+    return this.observationProbe(point, this._guidanceProbe);
   }
 
   setSun(elevationDeg, azimuthDeg) {

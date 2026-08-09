@@ -141,6 +141,9 @@ export class ChapterLandmarks {
     marker({ terrain, trail, t: 0.62, side: 2.9, stone: g.stone, alloy: g.alloy,
       anchor: this.observationAnchors.thresholdDrain = new THREE.Vector3(), ringScale: 0.82 });
     this.observationAnchors.reflectionNotch = new THREE.Vector3(0, waterY + 3.0, z + 0.8);
+    const reflectionViewpoint = trail.pointAt(0.89, new THREE.Vector3());
+    reflectionViewpoint.y = terrain.height(reflectionViewpoint.x, reflectionViewpoint.z) + 0.055;
+    this.observationAnchors.reflectionViewpoint = reflectionViewpoint;
   }
 
   _listeningRidge(terrain, trail, g) {
@@ -157,6 +160,9 @@ export class ChapterLandmarks {
     marker({ terrain, trail, t: 0.68, side: 2.8, stone: g.stone, alloy: g.alloy,
       anchor: this.observationAnchors.eastResonator = new THREE.Vector3() });
     this.observationAnchors.listeningAxis = new THREE.Vector3(0, y + 9.0, z + 1.9);
+    const listeningViewpoint = trail.pointAt(0.90, new THREE.Vector3());
+    listeningViewpoint.y = terrain.height(listeningViewpoint.x, listeningViewpoint.z) + 0.055;
+    this.observationAnchors.listeningViewpoint = listeningViewpoint;
   }
 
   _sourceEngine(terrain, trail, g) {
@@ -182,6 +188,9 @@ export class ChapterLandmarks {
     marker({ terrain, trail, t: 0.64, side: -2.7, stone: g.stone, alloy: g.alloy,
       anchor: this.observationAnchors.balanceChannel = new THREE.Vector3(), ringScale: 0.88 });
     this.observationAnchors.sourceOrder = new THREE.Vector3(0, y + 7.4, z + 1.45);
+    const sourceViewpoint = trail.pointAt(0.90, new THREE.Vector3());
+    sourceViewpoint.y = terrain.height(sourceViewpoint.x, sourceViewpoint.z) + 0.055;
+    this.observationAnchors.sourceViewpoint = sourceViewpoint;
   }
 
   dispose() {

@@ -13,7 +13,7 @@ const aimAtFirstStone = async (page, yawOffset = 0) => {
     game.goTo(0.34);
     const target = game.ruins.observationAnchors.firstStone;
     const dx = target.x - game.walker.pos.x;
-    const dy = target.y - game.walker.pos.y;
+    const dy = target.y - game.camera.position.y;
     const dz = target.z - game.walker.pos.z;
     game.walker.yaw = Math.atan2(-dx, -dz) + offset;
     game.walker.pitch = Math.atan2(dy, Math.hypot(dx, dz));
@@ -27,7 +27,7 @@ const holdAimAtFirstStone = async (page) => {
       const game = window.__game;
       const target = game.ruins.observationAnchors.firstStone;
       const dx = target.x - game.walker.pos.x;
-      const dy = target.y - game.walker.pos.y;
+      const dy = target.y - game.camera.position.y;
       const dz = target.z - game.walker.pos.z;
       game.walker.yaw = Math.atan2(-dx, -dz);
       game.walker.pitch = Math.atan2(dy, Math.hypot(dx, dz));
@@ -120,27 +120,131 @@ await page.screenshot({ path: shot('platform-layout-clue-activated-world-390x844
 await page.evaluate(() => {
   const game = window.__game;
   game.goTo(0.86);
-  const target = game.observationAnchors.gateAxis;
+  const target = game.observationAnchors.gateViewpoint;
   const dx = target.x - game.walker.pos.x;
   const dz = target.z - game.walker.pos.z;
   game.walker.yaw = Math.atan2(-dx, -dz) + Math.PI;
   game.walker.pitch = 0;
   document.querySelector('#clue-reveal').hidden = true;
 });
-await page.waitForFunction(() => document.querySelector('#observation').classList.contains('is-helped'), null, { timeout: 5_000 });
+await page.waitForFunction(() => document.querySelector('#hud').dataset.clueStage === 'positioning', null, { timeout: 5_000 });
+await page.waitForTimeout(700);
 const gateHelp = await page.evaluate(() => ({
   text: document.querySelector('#observation-label').textContent,
   bearing: Number(document.querySelector('#hud').dataset.clueBearing),
-  distance: Number(document.querySelector('#hud').dataset.clueDistance),
+  distance: Number(document.querySelector('#hud').dataset.clueGuidanceDistance),
   emissive: window.__game.ruins.evidenceVisuals.gate.alloy.emissiveIntensity,
+  waypointVisible: window.__game.ruins.evidenceVisuals.gate.waypoint.visible,
+  waypointOpacity: window.__game.ruins.evidenceVisuals.gate.waypointMaterial.opacity,
 }));
-if (!gateHelp.text.includes('turn around') || Math.abs(gateHelp.bearing) < 2.3
-    || gateHelp.distance > 32 || gateHelp.emissive <= 0.12) {
+if (!gateHelp.text.includes('STEP 1') || !gateHelp.text.includes('No tapping')
+    || !gateHelp.text.includes('turn around') || Math.abs(gateHelp.bearing) < 2.3
+    || gateHelp.distance > 32 || gateHelp.emissive <= 0.12
+    || !gateHelp.waypointVisible || gateHelp.waypointOpacity <= 0.5) {
   throw new Error(`Water-gate recovery guidance is not legible: ${JSON.stringify(gateHelp)}`);
 }
-await page.screenshot({ path: shot('platform-layout-gate-behind-guided-390x844.png'), fullPage: true });
+await page.screenshot({ path: shot('platform-layout-gate-step1-positioning-390x844.png'), fullPage: true });
+
+await page.evaluate(() => {
+  const game = window.__game;
+  game.goTo(0.80);
+  const seams = [game.observationAnchors.gateLeftSeam, game.observationAnchors.gateRightSeam];
+  const target = seams.reduce((nearest, point) => (
+    game.walker.pos.distanceTo(point) < game.walker.pos.distanceTo(nearest) ? point : nearest
+  ));
+  const dx = target.x - game.walker.pos.x;
+  const dy = target.y - game.camera.position.y;
+  const dz = target.z - game.walker.pos.z;
+  game.walker.yaw = Math.atan2(-dx, -dz) + 0.32;
+  game.walker.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+});
+await page.waitForFunction(() => document.querySelector('#hud').dataset.clueStage === 'observing', null, { timeout: 5_000 });
+const gateReady = await page.evaluate(() => document.querySelector('#observation-label').textContent);
+if (!gateReady.includes('STEP 2') || !gateReady.includes('hold 0.8 s')) {
+  throw new Error(`Water-gate observation step is unclear: ${gateReady}`);
+}
+await page.screenshot({ path: shot('platform-layout-gate-step2-ready-390x844.png'), fullPage: true });
+
+await page.evaluate(() => {
+  window.__qaHoldGate = true;
+  const frame = () => {
+    const game = window.__game;
+    const seams = [game.observationAnchors.gateLeftSeam, game.observationAnchors.gateRightSeam];
+    const target = seams.reduce((nearest, point) => (
+      game.walker.pos.distanceTo(point) < game.walker.pos.distanceTo(nearest) ? point : nearest
+    ));
+    const dx = target.x - game.walker.pos.x;
+    const dy = target.y - game.camera.position.y;
+    const dz = target.z - game.walker.pos.z;
+    game.walker.yaw = Math.atan2(-dx, -dz);
+    game.walker.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+    if (window.__qaHoldGate) requestAnimationFrame(frame);
+  };
+  frame();
+});
+try {
+  await page.waitForFunction(() => document.querySelector('#hud').dataset.clueStage === 'recording', null, { timeout: 3_000 });
+} catch (error) {
+  const diagnostic = await page.evaluate(() => {
+    const game = window.__game;
+    const left = { ...game.observationProbe(game.observationAnchors.gateLeftSeam) };
+    const right = { ...game.observationProbe(game.observationAnchors.gateRightSeam) };
+    return {
+      stage: document.querySelector('#hud').dataset.clueStage,
+      state: document.querySelector('#hud').dataset.clueState,
+      guidanceDistance: document.querySelector('#hud').dataset.clueGuidanceDistance,
+      sprinting: game.walker.isSprinting,
+      left,
+      right,
+    };
+  });
+  throw new Error(`Water-gate hold never entered recording: ${JSON.stringify(diagnostic)}`, { cause: error });
+}
+await page.waitForTimeout(260);
+await page.screenshot({ path: shot('platform-layout-gate-step2-recording-390x844.png'), fullPage: true });
+const gateTimeline = [];
+for (let sample = 0; sample < 50; sample += 1) {
+  gateTimeline.push(await page.evaluate(() => {
+    const game = window.__game;
+    const left = { ...game.observationProbe(game.observationAnchors.gateLeftSeam) };
+    const right = { ...game.observationProbe(game.observationAnchors.gateRightSeam) };
+    return {
+      recorded: game.ruins._investigationFeedback.recorded.has('gate-axis'),
+      state: document.querySelector('#hud').dataset.clueState,
+      stage: document.querySelector('#hud').dataset.clueStage,
+      progress: Number(document.querySelector('#hud').dataset.clueProgress),
+      center: Number(document.querySelector('#hud').dataset.clueCenterDistance),
+      left: { visible: left.visible, center: left.centerDistance, distance: left.distance },
+      right: { visible: right.visible, center: right.centerDistance, distance: right.distance },
+    };
+  }));
+  if (gateTimeline.at(-1).recorded) break;
+  await page.waitForTimeout(100);
+}
+if (!gateTimeline.at(-1).recorded) {
+  throw new Error(`Water-gate gaze did not complete: ${JSON.stringify(gateTimeline.slice(-5))}`);
+}
+await page.evaluate(() => { window.__qaHoldGate = false; });
+const gateRecorded = await page.evaluate(() => ({
+  count: document.querySelector('#clue-count').textContent,
+  copy: document.querySelector('#clue-reveal-copy').textContent,
+  waypointVisible: window.__game.ruins.evidenceVisuals.gate.waypoint.visible,
+}));
+if (!gateRecorded.count.includes('2/3') || !gateRecorded.copy.includes('No mechanism to open')) {
+  throw new Error(`Water-gate completion is unclear: ${JSON.stringify(gateRecorded)}`);
+}
+await page.evaluate(() => { document.querySelector('#clue-reveal').hidden = false; });
+await page.waitForTimeout(520);
+const waypointAfterRecord = await page.evaluate(
+  () => window.__game.ruins.evidenceVisuals.gate.waypointMaterial.opacity,
+);
+if (waypointAfterRecord > 0.1) {
+  throw new Error(`Water-gate waypoint did not retire after recording: ${waypointAfterRecord}`);
+}
+await page.screenshot({ path: shot('platform-layout-gate-recorded-pass-through-390x844.png'), fullPage: true });
 await context.close();
 
+if (!process.env.QA_PRIMARY_ONLY) {
 const narrowContext = await browser.newContext({
   viewport: { width: 320, height: 568 },
   deviceScaleFactor: 1,
@@ -171,6 +275,30 @@ if (narrowRecorded.at(-1).state !== 'recorded') {
 await narrowPage.evaluate(() => { window.__qaHoldAim = false; });
 await narrowPage.evaluate(() => { document.querySelector('#clue-reveal').hidden = false; });
 await narrowPage.screenshot({ path: shot('platform-layout-clue-recorded-reduced-motion-320x568.png'), fullPage: true });
+await narrowPage.evaluate(() => {
+  const game = window.__game;
+  game.goTo(0.86);
+  const target = game.observationAnchors.gateViewpoint;
+  const dx = target.x - game.walker.pos.x;
+  const dz = target.z - game.walker.pos.z;
+  game.walker.yaw = Math.atan2(-dx, -dz) + Math.PI;
+  game.walker.pitch = 0;
+  document.querySelector('#clue-reveal').hidden = true;
+});
+await narrowPage.waitForFunction(() => document.querySelector('#hud').dataset.clueStage === 'positioning', null, { timeout: 5_000 });
+const narrowGate = await narrowPage.evaluate(() => ({
+  text: document.querySelector('#observation-label').textContent,
+  waypointVisible: window.__game.ruins.evidenceVisuals.gate.waypoint.visible,
+}));
+if (!narrowGate.text.includes('步骤 1') || !narrowGate.text.includes('无需点击')
+    || !narrowGate.waypointVisible) {
+  throw new Error(`Narrow gate positioning is unclear: ${JSON.stringify(narrowGate)}`);
+}
+await narrowPage.screenshot({
+  path: shot('platform-layout-gate-step1-positioning-reduced-motion-320x568.png'),
+  fullPage: true,
+});
 await narrowContext.close();
+}
 
 await browser.close();

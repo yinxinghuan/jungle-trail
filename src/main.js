@@ -388,12 +388,13 @@ function clueDirectionKey(bearing) {
   return angle > 0 ? 'clueDirectionRight' : 'clueDirectionLeft';
 }
 
-function syncInvestigationFeedback(result = {}) {
+function syncInvestigationFeedback(result = {}, positioning = false) {
   game?.ruins?.setInvestigationFeedback?.({
     activeId: investigation.active?.contract.id || null,
     recordedIds: investigation.recordedIds(),
     helped: !!result.helped && !result.tracking,
     nearby: !!result.nearby,
+    positioning,
     reducedMotion,
   });
 }
@@ -410,7 +411,9 @@ function completeEvidence(tracker) {
     n: investigation.recordedCount, total: objective.evidence.length,
   });
   ui.clueRevealKicker.textContent = t('clueKicker', { n: investigation.recordedCount });
-  ui.clueRevealCopy.textContent = t(tracker.contract.recordedKey || 'clueRecorded');
+  ui.clueRevealCopy.textContent = `${t(tracker.contract.recordedKey || 'clueRecorded')}\n${t(
+    tracker.contract.nextKey || 'clueContinue',
+  )}`;
   ui.clueReveal.hidden = false;
   clearTimeout(clueRevealTimer);
   clueRevealTimer = setTimeout(() => { ui.clueReveal.hidden = true; }, 3600);
@@ -426,15 +429,28 @@ function updateEvidence(now, dt) {
     return;
   }
   const contract = tracker.contract;
-  const anchor = game.observationAnchors?.[contract.anchor];
+  const candidateAnchors = (contract.observationAnchors || [contract.anchor])
+    .map((name) => game.observationAnchors?.[name])
+    .filter(Boolean);
+  const anchor = candidateAnchors.reduce((nearest, point) => (
+    !nearest || game.camera.position.distanceTo(point) < game.camera.position.distanceTo(nearest)
+      ? point : nearest
+  ), null);
   if (!anchor) {
     ui.observation.hidden = true;
     ui.hud.dataset.clueState = 'anchor-missing';
     return;
   }
   const probe = game.observationProbe(anchor);
+  const viewpoint = contract.viewpointAnchor
+    ? game.observationAnchors?.[contract.viewpointAnchor] : null;
+  const viewpointProbe = viewpoint ? game.guidanceProbe(viewpoint) : null;
+  const positioning = !!viewpointProbe
+    && viewpointProbe.distance > (contract.viewpointRadius ?? 5.5);
   const result = tracker.update({
     ...probe,
+    visible: positioning ? false : probe.visible,
+    centerDistance: positioning ? Infinity : probe.centerDistance,
     sprinting: game.walker.isSprinting,
   }, now, dt, {
     helpDelayMs: progressStore.value.hintMode === 'expert'
@@ -443,7 +459,7 @@ function updateEvidence(now, dt) {
     alignRadius: contract.alignRadius ?? 0.09,
     breakRadius: contract.breakRadius ?? 0.14,
   });
-  syncInvestigationFeedback(result);
+  syncInvestigationFeedback(result, positioning);
   if (clueBeaconId !== contract.id) {
     clueBeaconId = contract.id;
     clueBeaconAt = now + 300;
@@ -475,38 +491,48 @@ function updateEvidence(now, dt) {
   }
 
   ui.observation.hidden = false;
-  const clueAngle = Number.isFinite(probe.bearing)
-    ? probe.bearing : Math.atan2(probe.screenX, -probe.screenY);
+  const guidanceProbe = positioning ? viewpointProbe : probe;
+  const guidanceAnchor = positioning ? viewpoint : anchor;
+  const clueAngle = Number.isFinite(guidanceProbe.bearing)
+    ? guidanceProbe.bearing : Math.atan2(guidanceProbe.screenX, -guidanceProbe.screenY);
   ui.observation.style.setProperty('--jt-clue-angle', `${clueAngle}rad`);
   setObservationProgress(result.progress);
   if (result.helpedNow) {
     sessionMetrics.hints += 1;
-    try { game.ambience?.playClueHint?.(anchor); } catch (_) { /* audio is non-fatal */ }
+    try { game.ambience?.playClueHint?.(guidanceAnchor); } catch (_) { /* audio is non-fatal */ }
     clueBeaconAt = now + 520;
   }
 
-  if (result.helped && !result.tracking && now >= clueBeaconAt) {
+  if ((positioning || result.helped) && !result.tracking && now >= clueBeaconAt) {
     const range = Math.max(1, contract.range ?? 22);
-    const distanceRatio = Math.min(1, Math.max(0, probe.distance / range));
+    const distanceRatio = Math.min(1, Math.max(0, guidanceProbe.distance / range));
     const proximity = 1 - distanceRatio;
-    try { game.ambience?.playClueBeacon?.(anchor, proximity); } catch (_) { /* audio is non-fatal */ }
+    try { game.ambience?.playClueBeacon?.(guidanceAnchor, proximity); } catch (_) { /* audio is non-fatal */ }
     clueBeaconAt = now + 1400 + distanceRatio * 1600;
   }
 
   ui.observation.classList.toggle('is-aligned', !!result.tracking);
-  ui.observation.classList.toggle('is-helped', result.helped && !result.tracking);
-  const baseLabel = game.walker.isSprinting
+  ui.observation.classList.toggle('is-positioning', positioning);
+  ui.observation.classList.toggle('is-helped', (positioning || result.helped) && !result.tracking);
+  const baseLabel = positioning
+    ? t(contract.positioningKey || contract.nearbyKey || 'clueNearby')
+    : game.walker.isSprinting
     ? t('clueSprint')
-    : result.tracking ? t(contract.focusKey || 'clueFocus')
-      : result.helped ? t(contract.searchKey || 'clueSearch')
+    : result.tracking ? `${t(contract.focusKey || 'clueFocus')}\n${t('clueRecording')}`
+      : contract.readyKey ? t(contract.readyKey)
+        : result.helped ? t(contract.searchKey || 'clueSearch')
         : t(contract.nearbyKey || 'clueNearby');
-  const guide = result.helped && !result.tracking
+  const guide = (positioning || result.helped) && !result.tracking
     ? `\n${t('clueGuide', {
-      direction: t(clueDirectionKey(probe.bearing)),
-      n: Math.max(1, Math.round(probe.distance)),
-    })}` : '';
+      direction: t(clueDirectionKey(guidanceProbe.bearing)),
+      n: Math.max(1, Math.round(guidanceProbe.distance)),
+    })}` : !result.tracking && !contract.readyKey ? `\n${t('clueHowTo')}` : '';
   ui.observationLabel.textContent = `${baseLabel}${guide}`;
-  ui.hud.dataset.clueBearing = Number.isFinite(probe.bearing) ? probe.bearing.toFixed(3) : '';
+  ui.hud.dataset.clueBearing = Number.isFinite(guidanceProbe.bearing)
+    ? guidanceProbe.bearing.toFixed(3) : '';
+  ui.hud.dataset.clueGuidanceDistance = Number.isFinite(guidanceProbe.distance)
+    ? guidanceProbe.distance.toFixed(2) : '';
+  ui.hud.dataset.clueStage = positioning ? 'positioning' : result.tracking ? 'recording' : 'observing';
   ui.hud.dataset.clueState = result.state;
   if (result.completed) completeEvidence(tracker);
 }
@@ -525,6 +551,7 @@ function resetInvestigation() {
   ui.clueProgress.classList.remove('is-recorded');
   ui.clueProgress.classList.remove('is-signaled');
   ui.observation.classList.remove('is-helped');
+  ui.observation.classList.remove('is-positioning');
   ui.clueCount.textContent = t('clueCount', { n: 0, total: objective.evidence.length });
   ui.hud.dataset.clueState = 'roaming';
   setObservationProgress(0);

@@ -31,6 +31,53 @@ test('chapter session resumes recorded evidence without replaying it', () => {
   assert.equal(session.active.contract.id, 'gate-axis');
 });
 
+test('large architectural evidence declares a safe observation position', () => {
+  const expected = new Set([
+    'gate-axis', 'water-gap', 'reflection-notch', 'listening-axis', 'source-order',
+  ]);
+  const contracts = CHAPTERS.flatMap((chapter) => chapter.evidence);
+  const positioned = contracts.filter((contract) => contract.viewpointAnchor);
+  assert.deepEqual(new Set(positioned.map((contract) => contract.id)), expected);
+  positioned.forEach((contract) => {
+    assert.ok(contract.viewpointRadius >= 6);
+    assert.ok(contract.positioningKey);
+    assert.ok(contract.readyKey);
+    assert.ok(contract.hold <= 1);
+  });
+});
+
+test('every evidence contract has explicit find, focus, record, and continuation copy', () => {
+  CHAPTERS.flatMap((chapter) => chapter.evidence).forEach((contract) => {
+    assert.ok(contract.nearbyKey);
+    assert.ok(contract.searchKey);
+    assert.ok(contract.focusKey);
+    assert.ok(contract.recordedKey);
+  });
+});
+
+test('every evidence instruction exists in both supported languages', async () => {
+  globalThis.localStorage ??= { getItem: () => null };
+  globalThis.navigator ??= { language: 'en-US' };
+  const { I18N_COPY } = await import('../src/i18n.js');
+  const commonKeys = ['clueHowTo', 'clueRecording', 'clueContinue', 'gateContinue'];
+  const contractKeys = CHAPTERS.flatMap((chapter) => chapter.evidence).flatMap((contract) => [
+    contract.aheadKey,
+    contract.nearbyKey,
+    contract.searchKey,
+    contract.focusKey,
+    contract.recordedKey,
+    contract.positioningKey,
+    contract.readyKey,
+    contract.nextKey,
+  ].filter(Boolean));
+  for (const locale of ['en', 'zh']) {
+    for (const key of new Set([...commonKeys, ...contractKeys])) {
+      assert.equal(typeof I18N_COPY[locale][key], 'string', `${locale}.${key} is missing`);
+      assert.ok(I18N_COPY[locale][key].trim(), `${locale}.${key} is empty`);
+    }
+  }
+});
+
 test('progress merge preserves unlocks from both devices and newest preferences', () => {
   const merged = mergeProgress(
     { unlocked: ['trail-remembers', 'flooded-threshold'], hintMode: 'guided', updatedAt: 10 },

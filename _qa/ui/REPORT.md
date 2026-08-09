@@ -14,7 +14,10 @@
 | Progressed field map | `platform-layout-field-map-ruins-390x844.png` | narrow map uses the same responsive SVG | Pass; at `t=0.78`, next landmark becomes Water gate (~20 m), the traced route changes to brass and the player moves to the real northern ruins position |
 | First trace nearby | `platform-layout-clue-nearby-390x844.png` | — | Pass; target range active, observation not auto-completed |
 | First trace activated in world | `platform-layout-clue-activated-world-390x844.png` | `platform-layout-clue-recorded-reduced-motion-320x568.png` | Pass; alloy ring remains visibly warm-gold after the transient reveal and reduced-motion keeps the state legible |
-| Water gate behind-player recovery | `platform-layout-gate-behind-guided-390x844.png` | — | Pass; world bearing reports behind, copy says turn around with about 18 m, and gate alloy guidance is active |
+| Water gate observation position | `platform-layout-gate-step1-positioning-390x844.png` | `platform-layout-gate-step1-positioning-reduced-motion-320x568.png` | Pass; step 1 explicitly says no tapping, points to a safe ground ring and reports behind/left/right plus distance |
+| Water gate ready | `platform-layout-gate-step2-ready-390x844.png` | same responsive contract | Pass; step 2 accepts either bright seam and names the 0.8 s hold |
+| Water gate automatic recording | `platform-layout-gate-step2-recording-390x844.png` | same responsive contract | Pass; reticle progress and copy both say recording is automatic and to keep still |
+| Water gate recorded / pass through | `platform-layout-gate-recorded-pass-through-390x844.png` | same responsive contract | Pass; count advances to 2/3 and copy explicitly says there is no mechanism to open and to use the central dirt path |
 | First trace guided | `platform-layout-clue-guided-390x844.png` | — | Pass; after 4.5 s, outer notch points toward the target and copy names the metal-ringed stone |
 | First trace alloy | `platform-layout-clue-alloy-390x844.png` | — | Pass; ancient alloy ring and oxidation seam are visible beside, not under, the centre reticle |
 | First trace aligned | `platform-layout-clue-aligned-390x844.png` | `platform-layout-clue-aligned-reduced-motion-320x568.png` | Pass; partial progress between 0 and 1 asserted |
@@ -32,6 +35,14 @@
 | External guest | `external-guest-entry-preview-motion-390x844.png`, `external-guest-field-hud-390x844.png`, `external-guest-field-map-390x844.png` | — | Pass; managed CTA remains visible, lower gameplay controls stay usable, and the opened map retains its close control and objective beneath the external-only overlay |
 
 ## Findings and fixes
+
+### P0 — Large evidence targets confused “where to stand” with “what to observe”
+
+- Evidence: the player's water-gate report and screenshot showed the bright alloy feature had been found, but gaze, tapping and collision all appeared ineffective.
+- Observation: navigation used the architectural feature's world coordinate as the destination. At the water gate this pulled the player toward a pillar instead of a readable portrait-camera viewpoint; after success, the lore line did not say whether the gate needed to be opened.
+- Impact: the player could correctly find the clue and still remain blocked for half an hour. The same contract risk existed at the later water gap, reflected doorway, listening towers and source machine.
+- Fix: split all five large clues into two declared coordinates: a safe `viewpointAnchor` and an `observationAnchor`. Step 1 gives direction/distance to the viewpoint; step 2 names the feature and hold time. Water gate accepts either glowing seam, uses a visible ground alloy ring, records after a 0.8 s centered gaze without tapping, and then explicitly instructs the player to walk through the central dirt path. Later large targets use the same two-stage pattern and a 1 s hold.
+- Recheck: unit tests enumerate exactly the five large contracts, require a safe radius and both step keys, and verify every evidence instruction exists in English and Chinese. The matched water-gate sequence covers positioning, ready, recording and recorded states; 320×568 reduced-motion keeps the ground ring and instruction legible.
 
 ### P1 — Fold lines still looked drawn onto the paper
 

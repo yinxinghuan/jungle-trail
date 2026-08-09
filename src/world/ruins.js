@@ -54,6 +54,7 @@
  * meant a variant count per tile and identical blocks besides.
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Noise2D, clamp, smoothstep, lerp } from './noise.js';
 import { makeRng } from './plants.js';
 import { CLEARING_Y } from './terrain.js';
@@ -841,7 +842,8 @@ export class Ruins {
     this.firstStoneSignal = null;
     this.evidenceVisuals = {};
     this._investigationFeedback = {
-      activeId: null, recorded: new Set(), helped: false, nearby: false, reducedMotion: false,
+      activeId: null, recorded: new Set(), helped: false, nearby: false,
+      positioning: false, reducedMotion: false,
     };
     this._signalClock = 0;
 
@@ -1369,6 +1371,7 @@ export class Ruins {
     root.name = 'expedition-alloy-signals';
 
     const gateY = this.terrain.height(0.4, -313.0);
+    const gateSeams = [];
     for (const [x, y, z, h, rot] of [
       [-0.28, gateY + 3.05, -313.55, 2.9, 0.42],
       [8.18, gateY + 2.64, -313.36, 2.25, 0.42],
@@ -1381,10 +1384,32 @@ export class Ruins {
       seam.position.y += h * 0.18;
       seam.rotation.y = rot;
       root.add(strip, seam);
+      gateSeams.push(strip);
     }
 
+    const viewpoint = this.trail.pointAt(0.80, new THREE.Vector3());
+    viewpoint.y = this.terrain.height(viewpoint.x, viewpoint.z) + 0.055;
+    const waypointMaterial = new THREE.MeshStandardMaterial({
+      color: 0xc9a969, emissive: 0x76501d, emissiveIntensity: 0,
+      roughness: 0.42, metalness: 0.72, envMapIntensity: 0.62,
+      transparent: true, opacity: 0, depthWrite: false,
+    });
+    const waypointParts = [
+      new THREE.BoxGeometry(0.42, 0.035, 0.045).translate(0, 0, 0.68),
+      new THREE.BoxGeometry(0.42, 0.035, 0.045).translate(0, 0, -0.68),
+      new THREE.BoxGeometry(0.045, 0.035, 0.42).translate(0.68, 0, 0),
+      new THREE.BoxGeometry(0.045, 0.035, 0.42).translate(-0.68, 0, 0),
+    ];
+    const waypoint = new THREE.Mesh(mergeGeometries(waypointParts, false), waypointMaterial);
+    waypoint.name = 'gate-observation-ring';
+    waypoint.position.copy(viewpoint);
+    waypoint.visible = false;
+    root.add(waypoint);
+    waypointParts.forEach((geometry) => geometry.dispose());
+
     this.evidenceVisuals.gate = {
-      id: 'gate-axis', alloy: gateAlloy, patina: gatePatina, level: 0,
+      id: 'gate-axis', alloy: gateAlloy, patina: gatePatina, gateSeams,
+      waypoint, waypointMaterial, level: 0, waypointLevel: 0,
       baseAlloy: new THREE.Color(0xb38c50), activeAlloy: new THREE.Color(0xe7c878),
       basePatina: new THREE.Color(0x294f43), activePatina: new THREE.Color(0x5d9476),
     };
@@ -1402,7 +1427,13 @@ export class Ruins {
     this.root.add(root);
 
     this.observationAnchors.gateAxis = new THREE.Vector3(3.95, gateY + 3.0, -313.25);
+    this.observationAnchors.gateLeftSeam = new THREE.Vector3(-0.28, gateY + 3.05, -313.55);
+    this.observationAnchors.gateRightSeam = new THREE.Vector3(8.18, gateY + 2.64, -313.36);
+    this.observationAnchors.gateViewpoint = viewpoint.clone();
     this.observationAnchors.waterGap = new THREE.Vector3(0, waterY + 2.15, -366.15);
+    const waterGapViewpoint = this.trail.pointAt(0.87, new THREE.Vector3());
+    waterGapViewpoint.y = this.terrain.height(waterGapViewpoint.x, waterGapViewpoint.z) + 0.055;
+    this.observationAnchors.waterGapViewpoint = waterGapViewpoint;
   }
 
   /* --------------------------------------------------------------- bakes */
@@ -1722,7 +1753,8 @@ export class Ruins {
   }
 
   setInvestigationFeedback({
-    activeId = null, recordedIds = [], helped = false, nearby = false, reducedMotion = false,
+    activeId = null, recordedIds = [], helped = false, nearby = false,
+    positioning = false, reducedMotion = false,
   } = {}) {
     const nextRecorded = new Set(recordedIds);
     if (nextRecorded.has('alloy-marker')
@@ -1730,7 +1762,9 @@ export class Ruins {
         && this.evidenceVisuals.firstStone) {
       this.evidenceVisuals.firstStone.flash = 1;
     }
-    this._investigationFeedback = { activeId, recorded: nextRecorded, helped, nearby, reducedMotion };
+    this._investigationFeedback = {
+      activeId, recorded: nextRecorded, helped, nearby, positioning, reducedMotion,
+    };
   }
 
   _updateEvidenceVisuals(dt) {
@@ -1767,6 +1801,15 @@ export class Ruins {
       gate.alloy.emissiveIntensity = lit * 0.38;
       gate.patina.emissive.setHex(0x173e2d);
       gate.patina.emissiveIntensity = lit * 0.16;
+
+      const showWaypoint = active && !recorded;
+      const waypointTarget = showWaypoint ? (feedback.positioning ? 1 : 0.35) : 0;
+      gate.waypointLevel = THREE.MathUtils.damp(gate.waypointLevel, waypointTarget, 7, dt);
+      gate.waypoint.visible = gate.waypointLevel > 0.01;
+      const waypointPulse = feedback.positioning && !feedback.reducedMotion
+        ? 0.82 + 0.18 * Math.sin(this._signalClock * Math.PI * 1.7) : 1;
+      gate.waypointMaterial.opacity = gate.waypointLevel * 0.92;
+      gate.waypointMaterial.emissiveIntensity = gate.waypointLevel * waypointPulse * 0.55;
     }
   }
 

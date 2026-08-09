@@ -12,7 +12,7 @@
 
 - `index.html`：长按防护、游戏 DOM、永久 UUID、`guest-shell.js` 与 Aigram bridge 入口。
 - `src/main.js`：章节选择、启动/预览、证据推进、调查模式、存档、HUD、地图投影、触控和生命周期。
-- `src/game/chapters.js`：四章、三证据、场景/地图地标名、观察范围、稳定时间和 8 个测绘点的声明式合同。
+- `src/game/chapters.js`：四章、三证据、场景/地图地标名、观察范围、稳定时间、安全观察位和 8 个测绘点的声明式合同。
 - `src/game/investigation.js`：与 DOM/Three.js 解耦的 `EvidenceTracker` 和 `InvestigationSession`。
 - `src/game/progress-store.js`：本地优先、云端合并、1 秒防抖写入与失败静默。
 - `src/game/map-geometry.js`：把相机世界前向直接投影为纸面朝向角，避免路线相对角的符号叠加。
@@ -42,9 +42,13 @@
 
 ### 证据与重复挑战
 
-每章合同声明 3 个依次出现的 evidence。`EvidenceTracker.update()` 只处理当前目标：通用 9% 对准半径、14% 保持半径、120 ms 防抖、350 ms 宽限、1.05–1.4 秒稳定时间；第一章水门按合同放宽为 14% / 22%、1.0 秒。快走、地图、暂停、隐藏和离屏不累积。`Game.observationProbe()` 同时返回投影可见性、短边归一化中心偏差，以及由相机 forward/right 向量与目标世界方向点积得到的可靠 `bearing`；离屏或身后目标不再依赖失真的 NDC 坐标判断左右。
+每章合同声明 3 个依次出现的 evidence。`EvidenceTracker.update()` 只处理当前目标：通用 9% 对准半径、14% 保持半径、120 ms 防抖、350 ms 宽限、1.0–1.3 秒稳定时间；第一章水门按合同放宽为 18% / 25%、0.8 秒。快走、地图、暂停、隐藏和离屏不累积。所有证据都采用“将特征放入观察环并保持，自动记录”的同一操作，不响应点击、撞击或长按按钮；记录中显示独立文案，完成后立即给出继续方向。
 
-`Ruins.setInvestigationFeedback()` 接收当前证据、已记录集合和帮助状态。第一处合金标记在记录后用材质颜色、emissive 与一次 1.2 秒缩放峰值形成永久激活状态；水门只提亮两道独立合金材质，帮助期间轻微呼吸，reduced-motion 时保持静态。该系统不增加灯光、粒子、后处理或 draw call。
+水门、水流缺口、倒影门庭、双塔听音轴和水源机器这 5 个大型目标额外声明 `viewpointAnchor`、`viewpointRadius`、`positioningKey` 与 `readyKey`。`main.js` 先把玩家引到可通行的安全观察位；到位后才允许目标进入记录状态，并把箭头、距离与声响从观察位切换到目标特征。第一章水门还允许左右任意一条发亮嵌条作为观察目标，并在地面显示合金观察环；完成后明确提示无需开启机关、沿中央泥土路穿过。这样导航坐标不再复用建筑模型中心，避免把玩家带进柱体、墙体或水面。
+
+`Game.observationProbe()` 同时返回投影可见性、短边归一化中心偏差，以及由相机 forward/right 向量与目标世界方向点积得到的可靠 `bearing`；`guidanceProbe()` 使用独立缓存结果，防止采样观察位时覆盖目标投影。离屏或身后目标不再依赖失真的 NDC 坐标判断左右。
+
+`Ruins.setInvestigationFeedback()` 接收当前证据、已记录集合、帮助状态与“正在前往观察位”状态。第一处合金标记在记录后用材质颜色、emissive 与一次 1.2 秒缩放峰值形成永久激活状态；水门提亮两道独立合金材质，并用合并后的单一网格绘制地面观察环，reduced-motion 时保持静态。该系统不增加灯光、粒子或后处理；观察环只增加 1 个临时 draw call。
 
 轻帮助出现后，`main.js` 以目标距离计算 1.4–3.0 秒重复间隔，并调用 `Ambience.playClueBeacon()` 在语义锚点播放双击合金脉冲。距离越近音高略高、间隔越短；对准、离开范围、暂停或静音后停止，文字的方向与整数米数始终保留。
 
@@ -78,7 +82,7 @@
 
 ## 4. 扩展点
 
-- 改章节顺序、证据范围、稳定时间、测绘点或文案 key：`src/game/chapters.js`。
+- 改章节顺序、证据范围、稳定时间、安全观察位、测绘点或文案 key：`src/game/chapters.js`；大型目标不要把建筑中心直接兼作 `viewpointAnchor`。
 - 加新观察规则：扩展 `src/game/investigation.js` 的输入 sample，不在 DOM 中复制计时逻辑。
 - 调整大型地标、合金比例、塔距或倒影：`src/world/chapter-landmarks.js`；第一章原生遗迹改 `src/world/ruins.js`。
 - 改四章路线：`src/world/path.js` 的 `CONTROL_VARIANTS`；保持终点与 `spillway.js` 水系合同一致。
