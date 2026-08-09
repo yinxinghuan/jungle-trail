@@ -36,7 +36,7 @@
 - Evidence: the user's review of the deployed five-panel revision.
 - Observation: repeated narrow highlights and shadows made every panel boundary read as a ruled seam; the inner frame, corner marks, grid and contour lines added more visual scaffolding than navigation value.
 - Impact: the paper looked constructed from UI decoration instead of one sheet receiving uneven light.
-- Fix: replaced the seam treatment with a three-band vertical light field and a two-column horizontal light field, forming six unoutlined regions: top-to-bottom gradually lightens and the right column stays slightly darker than the left. Removed the inner page frame, crop corners, grid, decorative contours and footer rule. Added six unequal `3–6 px` edge nicks only where the three fold axes meet the outer paper edge.
+- Fix: replaced the seam treatment with a three-band vertical light field and a two-column horizontal light field, forming six unoutlined regions: top-to-bottom gradually lightens and the right column stays slightly darker than the left. Removed the inner page frame, crop corners, grid, decorative contours and footer rule. Added six deliberately unequal `5–10 px` edge nicks only where the three fold axes meet the outer paper edge; width, depth and offset vary independently.
 - Recheck: computed paper material contains exactly two shallow light-field layers; the SVG contains zero page-frame, corner, grid or ridge groups, while the outer clip path preserves more than 20 asymmetric edge segments at both target sizes.
 
 ### P1 — Map heading compounded camera yaw with the route tangent using the wrong sign

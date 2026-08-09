@@ -161,15 +161,15 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
   box-shadow: 0 32px 90px rgba(0,0,0,.68), 0 0 0 5px #17231d, 0 0 0 7px rgba(177,141,85,.38), inset 0 0 38px rgba(80,64,32,.2);
   clip-path: polygon(
     0 9px, 9px 0,
-    calc(50% - 7px) 0, calc(50% - 1px) 5px, calc(50% + 4px) 0,
+    calc(50% - 10px) 0, calc(50% - 2px) 8px, calc(50% + 6px) 0,
     calc(100% - 9px) 0, 100% 9px,
-    100% calc(33.333% - 7px), calc(100% - 5px) 33.333%, 100% calc(33.333% + 4px),
-    100% calc(66.666% - 4px), calc(100% - 3px) calc(66.666% + 1px), 100% calc(66.666% + 7px),
+    100% calc(33.333% - 10px), calc(100% - 8px) calc(33.333% - 1px), 100% calc(33.333% + 6px),
+    100% calc(66.666% - 6px), calc(100% - 5px) calc(66.666% + 2px), 100% calc(66.666% + 10px),
     100% calc(100% - 9px), calc(100% - 9px) 100%,
-    calc(50% + 6px) 100%, calc(50% + 1px) calc(100% - 4px), calc(50% - 4px) 100%,
+    calc(50% + 9px) 100%, calc(50% + 2px) calc(100% - 6px), calc(50% - 5px) 100%,
     9px 100%, 0 calc(100% - 9px),
-    0 calc(66.666% + 6px), 4px calc(66.666% + 1px), 0 calc(66.666% - 5px),
-    0 calc(33.333% + 4px), 6px calc(33.333% - 1px), 0 calc(33.333% - 8px));
+    0 calc(66.666% + 9px), 7px calc(66.666% + 2px), 0 calc(66.666% - 7px),
+    0 calc(33.333% + 6px), 10px calc(33.333% - 2px), 0 calc(33.333% - 11px));
   animation: jt-map-open 220ms var(--jt-ease);
 }
 .jt-map__sheet::before { content: ""; position: absolute; z-index: 1; inset: 0; background:
