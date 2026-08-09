@@ -66,6 +66,14 @@
 - Fix: changed the structure to a single fold-out survey sheet with four paper creases, fibrous print texture, double registration frame, folio mark and survey seal. The map is full-width; objective, sector and traces form a compact measured band beneath it.
 - Recheck: matched 390×844 and 320×568 captures show the full true route, readable English/Chinese labels, no page overflow, zero horizontal sheet scroll and all controls at least 44 px.
 
+### P2 — Central fold still read as a decorative book spine
+
+- Evidence: the first fold-out map capture from commit `d0da0cb`.
+- Observation: a darker centre crease, left/right paper colour split and matching notches at the top and bottom made the single map look like two bound pages.
+- Impact: the surface implied a page-turning function that does not exist and competed visually with the true route running near the centre.
+- Fix: removed the centre spine, centre notches and page-to-page colour split. The paper now has two equally light vertical fold marks plus one shallow horizontal fold, matching a single field map.
+- Recheck: matched 390×844 and 320×568 captures retain the continuous outer frame and complete route without a dark line underneath it.
+
 ### P1 — Upper landmark labels overlapped
 
 - Evidence: first enhanced 390×844 and 320×568 map captures.

@@ -157,12 +157,12 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
 .jt-map__sheet { position: relative; isolation: isolate; width: min(100%, 680px); max-height: 100%; overflow-x: hidden; overflow-y: auto; padding: 22px 24px 18px; border: 1px solid rgba(19,29,25,.78); background:
   radial-gradient(circle at 18% 21%, rgba(75,64,36,.07) 0 1px, transparent 1.4px) 0 0/17px 19px,
   radial-gradient(circle at 72% 66%, rgba(255,255,255,.16), transparent 28%),
-  linear-gradient(90deg, #cfc6a8 0, #e3dcc3 4%, #ddd5bb 25%, #e5ddc4 49%, #d0c6a8 50%, #e4dcc3 51%, #d8cfb3 75%, #e0d7bd 96%, #c5ba9b 100%);
+  linear-gradient(105deg, #cfc6a8 0, #e3dcc3 5%, #ddd5bb 48%, #e5ddc4 74%, #c8bd9e 100%);
   box-shadow: 0 32px 90px rgba(0,0,0,.68), 0 0 0 5px #17231d, 0 0 0 7px rgba(177,141,85,.38), inset 0 0 38px rgba(80,64,32,.2);
-  clip-path: polygon(0 9px, 9px 0, 48% 0, 50% 7px, 52% 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 52% 100%, 50% calc(100% - 7px), 48% 100%, 9px 100%, 0 calc(100% - 9px));
+  clip-path: polygon(0 9px, 9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px));
   animation: jt-map-open 220ms var(--jt-ease);
 }
-.jt-map__sheet::before { content: ""; position: absolute; z-index: 1; inset: 0; background: linear-gradient(90deg, transparent 24.7%, rgba(67,54,31,.12) 25%, transparent 25.3%, transparent 49.6%, rgba(67,54,31,.15) 50%, transparent 50.4%, transparent 74.7%, rgba(67,54,31,.1) 75%, transparent 75.3%), linear-gradient(transparent 49.6%, rgba(67,54,31,.09) 50%, transparent 50.4%); pointer-events: none; }
+.jt-map__sheet::before { content: ""; position: absolute; z-index: 1; inset: 0; background: linear-gradient(90deg, transparent 32.9%, rgba(67,54,31,.075) 33.2%, transparent 33.5%, transparent 66.2%, rgba(67,54,31,.065) 66.5%, transparent 66.8%), linear-gradient(transparent 49.7%, rgba(67,54,31,.055) 50%, transparent 50.3%); pointer-events: none; }
 .jt-map__sheet::after { content: ""; position: absolute; z-index: 0; inset: 12px; border: 1px solid rgba(42,52,45,.26); box-shadow: inset 0 0 0 3px rgba(216,209,184,.7), inset 0 0 0 4px rgba(42,52,45,.14); pointer-events: none; }
 .jt-map__cover { display: none; }
 .jt-map__folio { position: absolute; z-index: 3; right: 31px; top: 15px; color: rgba(39,53,47,.54); font: 700 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; }
