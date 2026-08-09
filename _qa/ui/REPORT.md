@@ -13,6 +13,8 @@
 | Jump apex | `platform-layout-jump-apex-390x844.png` | deterministic 320×568 physics uses the same constants | Pass; live fixed-step peak 0.701 m and airborne time 0.758 s |
 | Progressed field map | `platform-layout-field-map-ruins-390x844.png` | narrow map uses the same responsive SVG | Pass; at `t=0.78`, next landmark becomes Water gate (~20 m), the traced route changes to brass and the player moves to the real northern ruins position |
 | First trace nearby | `platform-layout-clue-nearby-390x844.png` | — | Pass; target range active, observation not auto-completed |
+| First trace activated in world | `platform-layout-clue-activated-world-390x844.png` | `platform-layout-clue-recorded-reduced-motion-320x568.png` | Pass; alloy ring remains visibly warm-gold after the transient reveal and reduced-motion keeps the state legible |
+| Water gate behind-player recovery | `platform-layout-gate-behind-guided-390x844.png` | — | Pass; world bearing reports behind, copy says turn around with about 18 m, and gate alloy guidance is active |
 | First trace guided | `platform-layout-clue-guided-390x844.png` | — | Pass; after 4.5 s, outer notch points toward the target and copy names the metal-ringed stone |
 | First trace alloy | `platform-layout-clue-alloy-390x844.png` | — | Pass; ancient alloy ring and oxidation seam are visible beside, not under, the centre reticle |
 | First trace aligned | `platform-layout-clue-aligned-390x844.png` | `platform-layout-clue-aligned-reduced-motion-320x568.png` | Pass; partial progress between 0 and 1 asserted |

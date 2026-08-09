@@ -8,6 +8,7 @@ import { ANALOG_DEAD_ZONE, ANALOG_WALK_EDGE } from './player/gait.js';
 
 document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
 const coarseInput = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -142,6 +143,8 @@ let missionTimer = 0;
 let clueRevealTimer = 0;
 let lastHudAt = 0;
 let offTrailAt = 0;
+let clueBeaconAt = 0;
+let clueBeaconId = '';
 
 function supportsWebGL2() {
   try { return !!document.createElement('canvas').getContext('webgl2'); }
@@ -377,7 +380,26 @@ function setObservationProgress(value) {
   ui.hud.dataset.clueProgress = progress.toFixed(3);
 }
 
+function clueDirectionKey(bearing) {
+  const angle = Number.isFinite(bearing) ? bearing : 0;
+  const magnitude = Math.abs(angle);
+  if (magnitude > Math.PI * 0.75) return 'clueDirectionBehind';
+  if (magnitude < Math.PI * 0.25) return 'clueDirectionAhead';
+  return angle > 0 ? 'clueDirectionRight' : 'clueDirectionLeft';
+}
+
+function syncInvestigationFeedback(result = {}) {
+  game?.ruins?.setInvestigationFeedback?.({
+    activeId: investigation.active?.contract.id || null,
+    recordedIds: investigation.recordedIds(),
+    helped: !!result.helped && !result.tracking,
+    nearby: !!result.nearby,
+    reducedMotion,
+  });
+}
+
 function completeEvidence(tracker) {
+  syncInvestigationFeedback({ nearby: true });
   setObservationProgress(1);
   ui.hud.dataset.clueState = 'recorded';
   ui.observation.hidden = true;
@@ -400,6 +422,7 @@ function updateEvidence(now, dt) {
   const tracker = investigation.active;
   if (!game || !tracker || userPaused || docHidden || offscreen || completed) {
     ui.observation.hidden = true;
+    if (game && !tracker) syncInvestigationFeedback();
     return;
   }
   const contract = tracker.contract;
@@ -414,8 +437,17 @@ function updateEvidence(now, dt) {
     ...probe,
     sprinting: game.walker.isSprinting,
   }, now, dt, {
-    helpDelayMs: progressStore.value.hintMode === 'expert' ? 8000 : 4500,
+    helpDelayMs: progressStore.value.hintMode === 'expert'
+      ? Math.max(4200, (contract.helpDelayMs ?? 4500) + 3500)
+      : (contract.helpDelayMs ?? 4500),
+    alignRadius: contract.alignRadius ?? 0.09,
+    breakRadius: contract.breakRadius ?? 0.14,
   });
+  syncInvestigationFeedback(result);
+  if (clueBeaconId !== contract.id) {
+    clueBeaconId = contract.id;
+    clueBeaconAt = now + 300;
+  }
   if (result.announcedNow) {
     ui.clueProgress.classList.add('is-signaled');
     ui.mission.textContent = t(contract.aheadKey || 'clueAhead');
@@ -432,6 +464,7 @@ function updateEvidence(now, dt) {
     ui.observation.hidden = true;
     ui.observation.classList.remove('is-helped');
     setObservationProgress(result.progress);
+    clueBeaconAt = now + 300;
     return;
   }
 
@@ -442,21 +475,38 @@ function updateEvidence(now, dt) {
   }
 
   ui.observation.hidden = false;
-  const clueAngle = Math.atan2(probe.screenX, -probe.screenY);
+  const clueAngle = Number.isFinite(probe.bearing)
+    ? probe.bearing : Math.atan2(probe.screenX, -probe.screenY);
   ui.observation.style.setProperty('--jt-clue-angle', `${clueAngle}rad`);
   setObservationProgress(result.progress);
   if (result.helpedNow) {
     sessionMetrics.hints += 1;
     try { game.ambience?.playClueHint?.(anchor); } catch (_) { /* audio is non-fatal */ }
+    clueBeaconAt = now + 520;
+  }
+
+  if (result.helped && !result.tracking && now >= clueBeaconAt) {
+    const range = Math.max(1, contract.range ?? 22);
+    const distanceRatio = Math.min(1, Math.max(0, probe.distance / range));
+    const proximity = 1 - distanceRatio;
+    try { game.ambience?.playClueBeacon?.(anchor, proximity); } catch (_) { /* audio is non-fatal */ }
+    clueBeaconAt = now + 1400 + distanceRatio * 1600;
   }
 
   ui.observation.classList.toggle('is-aligned', !!result.tracking);
   ui.observation.classList.toggle('is-helped', result.helped && !result.tracking);
-  ui.observationLabel.textContent = game.walker.isSprinting
+  const baseLabel = game.walker.isSprinting
     ? t('clueSprint')
     : result.tracking ? t(contract.focusKey || 'clueFocus')
       : result.helped ? t(contract.searchKey || 'clueSearch')
         : t(contract.nearbyKey || 'clueNearby');
+  const guide = result.helped && !result.tracking
+    ? `\n${t('clueGuide', {
+      direction: t(clueDirectionKey(probe.bearing)),
+      n: Math.max(1, Math.round(probe.distance)),
+    })}` : '';
+  ui.observationLabel.textContent = `${baseLabel}${guide}`;
+  ui.hud.dataset.clueBearing = Number.isFinite(probe.bearing) ? probe.bearing.toFixed(3) : '';
   ui.hud.dataset.clueState = result.state;
   if (result.completed) completeEvidence(tracker);
 }
@@ -466,7 +516,10 @@ function resetInvestigation() {
   objective = chapter;
   investigation = new InvestigationSession(objective);
   sessionMetrics = { hints: 0, offroute: 0 };
+  clueBeaconAt = 0;
+  clueBeaconId = '';
   game?.chapterLandmarks?.setSurveyVisible(false);
+  syncInvestigationFeedback();
   clearTimeout(clueRevealTimer);
   ui.clueReveal.hidden = true;
   ui.clueProgress.classList.remove('is-recorded');

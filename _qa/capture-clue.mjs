@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = new URL('./ui/', import.meta.url);
 await mkdir(root, { recursive: true });
 const shot = (name) => fileURLToPath(new URL(name, root));
+const qaUrl = process.env.QA_URL || 'http://127.0.0.1:4173/';
 
 const aimAtFirstStone = async (page, yawOffset = 0) => {
   await page.evaluate((offset) => {
@@ -37,9 +38,9 @@ const holdAimAtFirstStone = async (page) => {
 };
 
 async function enter(page) {
-  await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+  await page.goto(qaUrl, { waitUntil: 'domcontentloaded' });
   await page.locator('#sleeping[data-preview-state="frozen"]').waitFor({ state: 'visible', timeout: 120_000 });
-  await page.addStyleTag({ content: '#alteru-guest-banner{display:none!important}' });
+  await page.addStyleTag({ content: '#alteru-guest-banner,#alteru-guest-login{display:none!important}' });
   await page.locator('#start-button').click();
   await page.locator('#sleeping').waitFor({ state: 'hidden', timeout: 120_000 });
   const viewport = page.viewportSize();
@@ -66,7 +67,7 @@ const helped = await page.evaluate(() => ({
   text: document.querySelector('#observation-label').textContent,
   angle: getComputedStyle(document.querySelector('#observation')).getPropertyValue('--jt-clue-angle'),
 }));
-if (!helped.text.includes('metal-ringed stone') || !helped.angle.trim()) {
+if (!helped.text.includes('about') || !helped.angle.trim()) {
   throw new Error(`Clue assistance did not become specific: ${JSON.stringify(helped)}`);
 }
 await page.screenshot({ path: shot('platform-layout-clue-guided-390x844.png'), fullPage: true });
@@ -104,12 +105,40 @@ const recorded = await page.evaluate(() => ({
   progress: Number(document.querySelector('#hud').dataset.clueProgress),
   revealVisible: !document.querySelector('#clue-reveal').hidden,
   count: document.querySelector('#clue-count').textContent,
+  recordedIds: [...window.__game.ruins._investigationFeedback.recorded],
 }));
-if (recorded.state !== 'recorded' || recorded.progress !== 1 || !recorded.count.includes('1/1')) {
+if (!recorded.recordedIds.includes('alloy-marker') || !recorded.count.includes('1/3')) {
   throw new Error(`Observation did not complete: ${JSON.stringify(recorded)}`);
 }
 await page.evaluate(() => { document.querySelector('#clue-reveal').hidden = false; });
 await page.screenshot({ path: shot('platform-layout-clue-recorded-390x844.png'), fullPage: true });
+
+await page.waitForTimeout(1250);
+await aimAtFirstStone(page);
+await page.screenshot({ path: shot('platform-layout-clue-activated-world-390x844.png'), fullPage: true });
+
+await page.evaluate(() => {
+  const game = window.__game;
+  game.goTo(0.86);
+  const target = game.observationAnchors.gateAxis;
+  const dx = target.x - game.walker.pos.x;
+  const dz = target.z - game.walker.pos.z;
+  game.walker.yaw = Math.atan2(-dx, -dz) + Math.PI;
+  game.walker.pitch = 0;
+  document.querySelector('#clue-reveal').hidden = true;
+});
+await page.waitForFunction(() => document.querySelector('#observation').classList.contains('is-helped'), null, { timeout: 5_000 });
+const gateHelp = await page.evaluate(() => ({
+  text: document.querySelector('#observation-label').textContent,
+  bearing: Number(document.querySelector('#hud').dataset.clueBearing),
+  distance: Number(document.querySelector('#hud').dataset.clueDistance),
+  emissive: window.__game.ruins.evidenceVisuals.gate.alloy.emissiveIntensity,
+}));
+if (!gateHelp.text.includes('turn around') || Math.abs(gateHelp.bearing) < 2.3
+    || gateHelp.distance > 32 || gateHelp.emissive <= 0.12) {
+  throw new Error(`Water-gate recovery guidance is not legible: ${JSON.stringify(gateHelp)}`);
+}
+await page.screenshot({ path: shot('platform-layout-gate-behind-guided-390x844.png'), fullPage: true });
 await context.close();
 
 const narrowContext = await browser.newContext({

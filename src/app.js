@@ -55,9 +55,12 @@ class Game {
     this._fpsT = 0;
     this._stableFor = 0;
     this._observationPoint = new THREE.Vector3();
+    this._observationDirection = new THREE.Vector3();
+    this._observationForward = new THREE.Vector3();
+    this._observationRight = new THREE.Vector3();
     this._observationProbe = {
       visible: false, distance: Infinity, centerDistance: Infinity,
-      screenX: 0, screenY: 0,
+      screenX: 0, screenY: 0, bearing: 0,
     };
     this.chapter = chapterById(chapterId);
 
@@ -572,9 +575,17 @@ class Game {
       result.centerDistance = Infinity;
       result.screenX = 0;
       result.screenY = 0;
+      result.bearing = 0;
       return result;
     }
     result.distance = this.camera.position.distanceTo(point);
+    this._observationDirection.copy(point).sub(this.camera.position).normalize();
+    this.camera.getWorldDirection(this._observationForward);
+    this._observationRight.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
+    result.bearing = Math.atan2(
+      this._observationDirection.dot(this._observationRight),
+      this._observationDirection.dot(this._observationForward),
+    );
     this._observationPoint.copy(point).project(this.camera);
     const w = Math.max(1, innerWidth);
     const h = Math.max(1, innerHeight);

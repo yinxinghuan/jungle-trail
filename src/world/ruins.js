@@ -839,6 +839,11 @@ export class Ruins {
      * way for observation gameplay to address a specific composition beat. */
     this.observationAnchors = {};
     this.firstStoneSignal = null;
+    this.evidenceVisuals = {};
+    this._investigationFeedback = {
+      activeId: null, recorded: new Set(), helped: false, nearby: false, reducedMotion: false,
+    };
+    this._signalClock = 0;
 
     this.material = makeStoneMaterial(renderer);
 
@@ -1309,12 +1314,16 @@ export class Ruins {
     if (signal.face < 0) face.rotation.y = Math.PI;
     const alloy = new THREE.MeshStandardMaterial({
       color: 0xb18d55,
+      emissive: 0x000000,
+      emissiveIntensity: 0,
       roughness: 0.38,
       metalness: 0.78,
       envMapIntensity: 0.72,
     });
     const patina = new THREE.MeshStandardMaterial({
       color: 0x365c4a,
+      emissive: 0x000000,
+      emissiveIntensity: 0,
       roughness: 0.72,
       metalness: 0.32,
       envMapIntensity: 0.34,
@@ -1336,17 +1345,25 @@ export class Ruins {
     mark.add(face);
     this.root.add(mark);
 
+    this.evidenceVisuals.firstStone = {
+      id: 'alloy-marker', ring, alloy, patina, level: 0, flash: 0,
+      baseAlloy: new THREE.Color(0xb18d55), activeAlloy: new THREE.Color(0xf0d38c),
+      basePatina: new THREE.Color(0x365c4a), activePatina: new THREE.Color(0x76aa8b),
+    };
+
     const localAnchor = new THREE.Vector3(0, 0.06, signal.face * 0.27)
       .applyQuaternion(signal.quaternion);
     this.observationAnchors.firstStone = signal.position.clone().add(localAnchor);
   }
 
   _buildExpeditionSignals() {
-    const alloy = new THREE.MeshStandardMaterial({
-      color: 0xb38c50, roughness: 0.34, metalness: 0.82, envMapIntensity: 0.78,
+    const gateAlloy = new THREE.MeshStandardMaterial({
+      color: 0xb38c50, emissive: 0x000000, emissiveIntensity: 0,
+      roughness: 0.34, metalness: 0.82, envMapIntensity: 0.78,
     });
-    const patina = new THREE.MeshStandardMaterial({
-      color: 0x294f43, roughness: 0.70, metalness: 0.38, envMapIntensity: 0.38,
+    const gatePatina = new THREE.MeshStandardMaterial({
+      color: 0x294f43, emissive: 0x000000, emissiveIntensity: 0,
+      roughness: 0.70, metalness: 0.38, envMapIntensity: 0.38,
     });
     const root = new THREE.Group();
     root.name = 'expedition-alloy-signals';
@@ -1356,19 +1373,28 @@ export class Ruins {
       [-0.28, gateY + 3.05, -313.55, 2.9, 0.42],
       [8.18, gateY + 2.64, -313.36, 2.25, 0.42],
     ]) {
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.075, h, 0.035), alloy);
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.12, h, 0.045), gateAlloy);
       strip.position.set(x, y, z);
       strip.rotation.y = rot;
-      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.17, 0.045), patina);
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.19, 0.052), gatePatina);
       seam.position.copy(strip.position);
       seam.position.y += h * 0.18;
       seam.rotation.y = rot;
       root.add(strip, seam);
     }
 
+    this.evidenceVisuals.gate = {
+      id: 'gate-axis', alloy: gateAlloy, patina: gatePatina, level: 0,
+      baseAlloy: new THREE.Color(0xb38c50), activeAlloy: new THREE.Color(0xe7c878),
+      basePatina: new THREE.Color(0x294f43), activePatina: new THREE.Color(0x5d9476),
+    };
+
     const waterY = this.terrain.height(0, -365.8);
+    const waterAlloy = gateAlloy.clone();
+    waterAlloy.emissive.setHex(0x000000);
+    waterAlloy.emissiveIntensity = 0;
     for (const x of [-8.38, 8.38]) {
-      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.08, 0.20), alloy);
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.08, 0.20), waterAlloy);
       plate.position.set(x, waterY + 1.05, -365.72);
       plate.rotation.set(0.05, 0, x < 0 ? -0.18 : 0.18);
       root.add(plate);
@@ -1686,10 +1712,61 @@ export class Ruins {
    * vegetation does it: the fog closes at about forty metres and a tile past
    * that contributes nothing but is still submitted, and still casts. */
   update(dt, camera) {
+    this._signalClock += dt;
     const cx = camera.position.x, cz = camera.position.z;
     for (const c of this.cells) {
       const dx = c.x - cx, dz = c.z - cz;
       c.mesh.visible = dx * dx + dz * dz < 110 * 110;
+    }
+    this._updateEvidenceVisuals(dt);
+  }
+
+  setInvestigationFeedback({
+    activeId = null, recordedIds = [], helped = false, nearby = false, reducedMotion = false,
+  } = {}) {
+    const nextRecorded = new Set(recordedIds);
+    if (nextRecorded.has('alloy-marker')
+        && !this._investigationFeedback.recorded.has('alloy-marker')
+        && this.evidenceVisuals.firstStone) {
+      this.evidenceVisuals.firstStone.flash = 1;
+    }
+    this._investigationFeedback = { activeId, recorded: nextRecorded, helped, nearby, reducedMotion };
+  }
+
+  _updateEvidenceVisuals(dt) {
+    const feedback = this._investigationFeedback;
+    const stone = this.evidenceVisuals.firstStone;
+    if (stone) {
+      const recorded = feedback.recorded.has(stone.id);
+      const target = recorded ? 1 : feedback.activeId === stone.id && feedback.nearby ? 0.14 : 0;
+      stone.level = THREE.MathUtils.damp(stone.level, target, 7, dt);
+      stone.flash = Math.max(0, stone.flash - dt / 1.2);
+      const peak = Math.sin((1 - stone.flash) * Math.PI) * stone.flash;
+      stone.alloy.color.copy(stone.baseAlloy).lerp(stone.activeAlloy, stone.level);
+      stone.patina.color.copy(stone.basePatina).lerp(stone.activePatina, stone.level);
+      stone.alloy.emissive.setHex(0x8a5c20);
+      stone.alloy.emissiveIntensity = stone.level * 0.46 + peak * 0.62;
+      stone.patina.emissive.setHex(0x214b39);
+      stone.patina.emissiveIntensity = stone.level * 0.22 + peak * 0.24;
+      const scale = 1 + peak * 0.08;
+      stone.ring.scale.setScalar(scale);
+    }
+
+    const gate = this.evidenceVisuals.gate;
+    if (gate) {
+      const recorded = feedback.recorded.has(gate.id);
+      const active = feedback.activeId === gate.id;
+      const target = recorded ? 0.62 : active ? (feedback.helped ? 0.9 : feedback.nearby ? 0.42 : 0.18) : 0;
+      gate.level = THREE.MathUtils.damp(gate.level, target, 5, dt);
+      const pulse = active && feedback.helped && !feedback.reducedMotion
+        ? 0.82 + 0.18 * Math.sin(this._signalClock * Math.PI * 1.35) : 1;
+      const lit = gate.level * pulse;
+      gate.alloy.color.copy(gate.baseAlloy).lerp(gate.activeAlloy, lit);
+      gate.patina.color.copy(gate.basePatina).lerp(gate.activePatina, lit * 0.78);
+      gate.alloy.emissive.setHex(0x76501d);
+      gate.alloy.emissiveIntensity = lit * 0.38;
+      gate.patina.emissive.setHex(0x173e2d);
+      gate.patina.emissiveIntensity = lit * 0.16;
     }
   }
 

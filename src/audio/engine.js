@@ -618,6 +618,37 @@ export class Ambience {
     setTimeout(() => { try { pan.disconnect(); } catch (_) { /* already released */ } }, 520);
   }
 
+  /** A restrained repeating alloy pulse whose cadence and pitch encode range. */
+  playClueBeacon(position, proximity = 0) {
+    if (!this.ready || this.muted || !this.ctx || !this.master || !position) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const near = clamp(proximity, 0, 1);
+    const pan = ctx.createPanner();
+    pan.panningModel = 'equalpower';
+    pan.distanceModel = 'inverse';
+    pan.refDistance = 5;
+    pan.maxDistance = 55;
+    pan.rolloffFactor = 0.55;
+    this._placePanner(pan, position);
+    pan.connect(this.master);
+    const base = 205 + near * 92;
+    const gap = 0.12 - near * 0.035;
+    for (const [ratio, gain, delay] of [[1, 0.040 + near * 0.012, 0], [1.34, 0.027 + near * 0.010, gap]]) {
+      const osc = ctx.createOscillator();
+      const amp = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(base * ratio, now + delay);
+      osc.frequency.exponentialRampToValueAtTime(base * ratio * 0.82, now + delay + 0.24);
+      amp.gain.setValueAtTime(0.0001, now + delay);
+      amp.gain.exponentialRampToValueAtTime(gain, now + delay + 0.014);
+      amp.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.25);
+      osc.connect(amp); amp.connect(pan);
+      osc.start(now + delay); osc.stop(now + delay + 0.27);
+    }
+    setTimeout(() => { try { pan.disconnect(); } catch (_) { /* already released */ } }, 480);
+  }
+
   setPaused(paused) {
     if (!this.ready) return;
     if (paused && this.ctx.state === 'running' && this.ctx.suspend) this.ctx.suspend();
