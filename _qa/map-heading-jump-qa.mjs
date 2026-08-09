@@ -43,14 +43,19 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
       window.__expeditionQa.openMap();
       const transform = document.querySelector('#map-player').getAttribute('transform');
       const paper = getComputedStyle(document.querySelector('.jt-map__sheet'), '::before').backgroundImage;
-      return { transform, paper };
+      const paperEdge = getComputedStyle(document.querySelector('.jt-map__sheet')).clipPath;
+      const decorativeLines = document.querySelectorAll('.jt-map__page-frame,.jt-map__corner-mark,.jt-map__grid,.jt-map__ridge').length;
+      return { transform, paper, paperEdge, decorativeLines };
     }, item.yaw);
     const angle = Number(state.transform.match(/rotate\(([-\d.]+)/)?.[1]);
     const error = Math.min(Math.abs(angle - item.angle), Math.abs(angle + item.angle));
     if (!Number.isFinite(angle) || error > 0.2) {
       throw new Error(`Map heading ${item.name} is wrong: ${JSON.stringify({ viewport, item, state, angle })}`);
     }
-    if (state.paper.includes('180deg')) throw new Error('Paper still contains a horizontal centre fold');
+    const lightFields = (state.paper.match(/linear-gradient/g) || []).length;
+    if (lightFields !== 2) throw new Error(`Paper is missing the two-axis light field: ${state.paper}`);
+    if ((state.paperEdge.match(/,/g) || []).length < 20) throw new Error(`Paper fold-edge wear is missing: ${state.paperEdge}`);
+    if (state.decorativeLines !== 0) throw new Error(`Map still contains ${state.decorativeLines} decorative line groups`);
     headings.push({ ...item, actual: angle });
     if (item.name === 'north' || (viewport.width === 390 && item.name === 'east')) {
       await page.waitForTimeout(280);

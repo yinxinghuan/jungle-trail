@@ -31,6 +31,14 @@
 
 ## Findings and fixes
 
+### P1 — Fold lines still looked drawn onto the paper
+
+- Evidence: the user's review of the deployed five-panel revision.
+- Observation: repeated narrow highlights and shadows made every panel boundary read as a ruled seam; the inner frame, corner marks, grid and contour lines added more visual scaffolding than navigation value.
+- Impact: the paper looked constructed from UI decoration instead of one sheet receiving uneven light.
+- Fix: replaced the seam treatment with a three-band vertical light field and a two-column horizontal light field, forming six unoutlined regions: top-to-bottom gradually lightens and the right column stays slightly darker than the left. Removed the inner page frame, crop corners, grid, decorative contours and footer rule. Added six unequal `3–6 px` edge nicks only where the three fold axes meet the outer paper edge.
+- Recheck: computed paper material contains exactly two shallow light-field layers; the SVG contains zero page-frame, corner, grid or ridge groups, while the outer clip path preserves more than 20 asymmetric edge segments at both target sizes.
+
 ### P1 — Map heading compounded camera yaw with the route tangent using the wrong sign
 
 - Evidence: the user's online report plus the old `mapTangentAngle + (walkerYaw - routeYaw)` calculation.
@@ -45,7 +53,7 @@
 - Observation: a synthetic 50% horizontal gradient crossed the route and read as a black seam, although the reference's material volume comes primarily from vertical accordion panels.
 - Impact: the line looked like a rendering defect and weakened the physical-paper illusion.
 - Fix: removed the horizontal gradient completely and rebuilt the surface as five broad vertical light-facing panels separated by paired narrow highlights and soft brown shadows.
-- Recheck: final 390×844 and 320×568 map captures contain no computed `180deg` fold layer and no dark line through the route centre.
+- Recheck: the intermediate five-panel capture removed the black seam; the later four-quadrant revision retains only a shallow horizontal light-field change, without any fold stroke, narrow highlight or shadow band.
 
 ### P2 — Jump and map entry understated available actions
 
