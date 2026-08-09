@@ -31,6 +31,11 @@ await run({
     await page.click('#start-button');
     await page.waitForTimeout(450);
     if (state === 'gameplay') await page.evaluate(() => { window.__game.goTo(0.34); window.__game.warp(1); });
+    if (state === 'map') {
+      await page.evaluate(() => { window.__game.goTo(0.34); window.__game.warp(1); });
+      await page.click('#map-button');
+      await page.waitForTimeout(180);
+    }
     if (state === 'pause') await page.click('#pause-button');
     if (state === 'complete') await page.evaluate(() => window.__expeditionQa.completeChapter());
     if (state === 'survey') {

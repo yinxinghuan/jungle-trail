@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { POOL_Y } from './spillway.js';
 
 const _matrix = new THREE.Matrix4();
 const _position = new THREE.Vector3();
@@ -43,11 +42,13 @@ export class ChapterLandmarks {
     const alloy = [];
     const patina = [];
     const reflection = [];
+    const deadwood = [];
     const box = new THREE.BoxGeometry(1, 1, 1, 1, 1, 1);
     const cylinder = new THREE.CylinderGeometry(1, 1, 1, tier === 'low' ? 10 : 16, 1);
     const ring = new THREE.TorusGeometry(1, 0.12, tier === 'low' ? 6 : 8, tier === 'low' ? 24 : 40);
 
-    if (chapter.number === 2) this._floodedThreshold(terrain, trail, { stone, alloy, patina, reflection, box, ring });
+    if (chapter.number === 2) this._floodedThreshold(terrain, trail,
+      { stone, alloy, patina, reflection, deadwood, box, cylinder, ring });
     if (chapter.number === 3) this._listeningRidge(terrain, trail, { stone, alloy, patina, box, cylinder, ring });
     if (chapter.number === 4) this._sourceEngine(terrain, trail, { stone, alloy, patina, box, cylinder, ring });
 
@@ -75,6 +76,9 @@ export class ChapterLandmarks {
     addMerged('chapter-controlled-reflection', reflection, new THREE.MeshBasicMaterial({
       color: 0x263934, transparent: true, opacity: 0.16, depthWrite: false,
       side: THREE.DoubleSide,
+    }));
+    addMerged('chapter-deadwood', deadwood, new THREE.MeshStandardMaterial({
+      color: 0x4b493e, roughness: 1, metalness: 0, envMapIntensity: 0.16,
     }));
     this._buildSurveyMarkers(terrain, trail, chapter);
   }
@@ -124,29 +128,86 @@ export class ChapterLandmarks {
   setSurveyVisible(visible) { if (this.surveyRoot) this.surveyRoot.visible = visible; }
 
   _floodedThreshold(terrain, trail, g) {
-    const waterY = POOL_Y;
-    const z = -373.0;
-    for (const x of [-7.2, 7.2]) {
-      place(g.stone, g.box, [x, waterY + 2.6, z], [0, x < 0 ? -0.03 : 0.03, 0], [2.15, 7.6, 2.25]);
-      place(g.alloy, g.box, [x + (x < 0 ? 1.1 : -1.1), waterY + 2.8, z + 1.14], [0, 0, 0], [0.10, 4.6, 0.04]);
-      place(g.patina, g.box, [x + (x < 0 ? 1.1 : -1.1), waterY + 2.0, z + 1.17], [0, 0, 0], [0.16, 0.42, 0.05]);
-      place(g.reflection, g.box, [x, waterY - 1.65, z], [0, 0, 0], [1.95, 3.0, 2.05]);
+    const deadTreeSpecs = [
+      [0.08, -8.0, 8.5, -0.05], [0.16, 10.5, 12.0, 0.04],
+      [0.27, -11.0, 10.0, 0.03], [0.34, -7.8, 13.5, -0.04],
+      [0.46, 9.4, 8.0, 0.05], [0.57, -10.2, 11.5, -0.02],
+      [0.68, 8.2, 12.5, 0.04], [0.79, 11.0, 9.0, -0.04],
+      [0.86, -8.0, 11.0, 0.03],
+    ];
+    deadTreeSpecs.forEach(([t, side, height, lean], index) => {
+      const p = trail.pointAt(t, new THREE.Vector3());
+      const tangent = trail.tangentAt(t, new THREE.Vector3()).normalize();
+      p.x += -tangent.z * side;
+      p.z += tangent.x * side;
+      p.y = terrain.height(p.x, p.z);
+      const radius = 0.22 + (index % 3) * 0.07;
+      place(g.deadwood, g.cylinder,
+        [p.x, p.y + height * 0.5, p.z], [lean, index * 0.71, lean * 0.7],
+        [radius, height, radius * 0.9]);
+      if (index % 2 === 0) {
+        place(g.deadwood, g.cylinder,
+          [p.x + 0.35, p.y + height * 0.72, p.z],
+          [Math.PI * 0.42, index * 0.71, 0.18], [radius * 0.42, 2.2, radius * 0.42]);
+      }
+    });
+
+    const centre = trail.pointAt(0.91, new THREE.Vector3());
+    const tan = trail.tangentAt(0.91, new THREE.Vector3()).normalize();
+    const nx = -tan.z, nz = tan.x;
+    const yaw = Math.atan2(tan.x, tan.z);
+    const groundY = terrain.height(centre.x, centre.z);
+    for (const side of [-1, 1]) {
+      const x = centre.x + nx * side * 6.6;
+      const z = centre.z + nz * side * 6.6;
+      const y = terrain.height(x, z);
+      place(g.stone, g.box, [x, y + 3.2, z], [0, yaw, side * 0.025], [2.1, 7.6, 2.35]);
+      place(g.alloy, g.box,
+        [x - nx * side * 1.08 + tan.x * 1.18, y + 3.1, z - nz * side * 1.08 + tan.z * 1.18],
+        [0, yaw, 0], [0.10, 4.8, 0.05]);
+      place(g.patina, g.box,
+        [x - nx * side * 1.08 + tan.x * 1.22, y + 2.1, z - nz * side * 1.08 + tan.z * 1.22],
+        [0, yaw, 0], [0.17, 0.48, 0.06]);
+      place(g.reflection, g.box, [x, y - 1.8, z], [0, yaw, 0], [1.95, 3.0, 2.05]);
     }
-    place(g.stone, g.box, [0, waterY + 6.0, z], [0.02, 0, -0.025], [12.4, 1.35, 2.15]);
-    place(g.alloy, g.ring, [0, waterY + 5.9, z + 1.12], [0, 0, 0], [1.3, 1.3, 1.3]);
-    place(g.reflection, g.box, [0, waterY - 3.1, z], [0, 0, 0], [11.0, 0.65, 1.9]);
+    place(g.stone, g.box,
+      [centre.x, groundY + 6.55, centre.z], [0.02, yaw, -0.025], [12.8, 1.35, 2.2]);
+    place(g.alloy, g.ring,
+      [centre.x + tan.x * 1.15, groundY + 6.4, centre.z + tan.z * 1.15],
+      [0, yaw, 0], [1.3, 1.3, 1.3]);
+    place(g.reflection, g.box,
+      [centre.x, groundY - 3.2, centre.z], [0, yaw, 0], [11.2, 0.65, 1.9]);
 
     marker({ terrain, trail, t: 0.34, side: -2.8, stone: g.stone, alloy: g.alloy,
       anchor: this.observationAnchors.drownedDatum = new THREE.Vector3() });
     marker({ terrain, trail, t: 0.62, side: 2.9, stone: g.stone, alloy: g.alloy,
       anchor: this.observationAnchors.thresholdDrain = new THREE.Vector3(), ringScale: 0.82 });
-    this.observationAnchors.reflectionNotch = new THREE.Vector3(0, waterY + 3.0, z + 0.8);
+    this.observationAnchors.reflectionNotch = new THREE.Vector3(
+      centre.x + tan.x * 1.15, groundY + 6.4, centre.z + tan.z * 1.15,
+    );
     const reflectionViewpoint = trail.pointAt(0.89, new THREE.Vector3());
     reflectionViewpoint.y = terrain.height(reflectionViewpoint.x, reflectionViewpoint.z) + 0.055;
     this.observationAnchors.reflectionViewpoint = reflectionViewpoint;
   }
 
   _listeningRidge(terrain, trail, g) {
+    const ridgeStoneSpecs = [
+      [0.12, -6.8, 2.4, 1.8], [0.20, 7.5, 3.6, 2.1],
+      [0.31, -8.2, 4.8, 2.5], [0.39, 6.7, 2.8, 1.7],
+      [0.51, 8.8, 5.2, 2.6], [0.58, -7.2, 3.5, 2.0],
+      [0.70, -9.0, 5.8, 2.8], [0.78, 7.4, 4.1, 2.1],
+    ];
+    ridgeStoneSpecs.forEach(([t, side, height, width], index) => {
+      const p = trail.pointAt(t, new THREE.Vector3());
+      const tangent = trail.tangentAt(t, new THREE.Vector3()).normalize();
+      p.x += -tangent.z * side;
+      p.z += tangent.x * side;
+      p.y = terrain.height(p.x, p.z);
+      place(g.stone, g.box, [p.x, p.y + height * 0.42, p.z],
+        [0.12 + index * 0.035, index * 0.83, side > 0 ? 0.18 : -0.16],
+        [width, height, width * (0.48 + (index % 3) * 0.12)]);
+    });
+
     const y = terrain.height(0, -365);
     const z = -366;
     for (const x of [-4.0, 4.0]) {
@@ -166,7 +227,22 @@ export class ChapterLandmarks {
   }
 
   _sourceEngine(terrain, trail, g) {
-    const y = POOL_Y;
+    const channelSpecs = [[0.24, -2.35, 13], [0.43, 2.35, 16], [0.65, -2.35, 15], [0.80, 2.35, 12]];
+    channelSpecs.forEach(([t, side, length]) => {
+      const p = trail.pointAt(t, new THREE.Vector3());
+      const tangent = trail.tangentAt(t, new THREE.Vector3()).normalize();
+      p.x += -tangent.z * side;
+      p.z += tangent.x * side;
+      p.y = terrain.height(p.x, p.z);
+      const yaw = Math.atan2(tangent.x, tangent.z);
+      place(g.stone, g.box, [p.x, p.y + 0.25, p.z], [0, yaw, 0], [0.42, 0.50, length]);
+      place(g.alloy, g.box,
+        [p.x + -tangent.z * Math.sign(side) * 0.23, p.y + 0.52,
+          p.z + tangent.x * Math.sign(side) * 0.23],
+        [0, yaw, 0], [0.055, 0.05, length * 0.94]);
+    });
+
+    const y = terrain.height(0, -375);
     const z = -375;
     for (const x of [-6.6, 6.6]) {
       place(g.stone, g.box, [x, y + 0.45, z], [0, 0, 0], [8.8, 1.35, 6.0]);

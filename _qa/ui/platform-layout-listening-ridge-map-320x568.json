@@ -1,0 +1,69 @@
+{
+  "layout": {
+    "chapter": "Chapter 3 · Listening Ridge",
+    "navButtons": 4,
+    "startRect": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "overflow": false,
+    "game": {
+      "calls": 311,
+      "triangles": 1603892,
+      "geometries": 289,
+      "textures": 37,
+      "programs": 18,
+      "water": {
+        "kind": "listening-ridge",
+        "pools": 0,
+        "drawCalls": 0,
+        "mirror": "off"
+      },
+      "veg": {
+        "meshes": 2031,
+        "instances": 40248,
+        "tris": 20054310
+      },
+      "body": {
+        "meshes": 11,
+        "firstPersonDraws": 5,
+        "shadowDraws": 6,
+        "triangles": 5404,
+        "firstPersonTriangles": 2304,
+        "shadowTriangles": 3100,
+        "textures": 3,
+        "bones": 22,
+        "quality": "low"
+      },
+      "collision": {
+        "colliders": 1014,
+        "cells": 943,
+        "byKind": {
+          "tree": 168,
+          "buttress": 667,
+          "palm": 150,
+          "log": 29
+        },
+        "queries": 0,
+        "averageCandidates": 0,
+        "maxCandidates": 0,
+        "averageTests": 0,
+        "maxTests": 0,
+        "averageMs": 0,
+        "maxMs": 0,
+        "contacts": 0
+      }
+    }
+  },
+  "errors": [
+    "[console] Access to resource at 'https://aigram.aiwaves.tech/note/aigram/ai/game/track/report' from origin 'http://localhost:56672' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "[netfail] https://aigram.aiwaves.tech/note/aigram/ai/game/track/report",
+    "[console] Failed to load resource: net::ERR_FAILED"
+  ]
+}

@@ -65,9 +65,10 @@ export class Terrain {
    *   between masonry that is buried in its own bank and masonry that has been
    *   pushed into a hillside.
    */
-  constructor(trail, seed = 20260801, plan = null) {
+  constructor(trail, seed = 20260801, plan = null, region = {}) {
     this.trail = trail;
     this.plan = plan;
+    this.region = region;
     this.n = new Noise2D(seed);
     this.nb = new Noise2D(seed ^ 0x9e3779b9);
 
@@ -77,6 +78,7 @@ export class Terrain {
     this.H = Math.round((BOUNDS.z0 - BOUNDS.z1) / STEP) + 1;
 
     this._buildPathProfile();
+    this._buildFloodPools();
     this._buildField();
     /* Before the heights, because the heights are cut to it. The brook owns
      * the one profile that the channel, the water surface and the audio's
@@ -112,15 +114,60 @@ export class Terrain {
     for (let i = 0; i < S.length; i++) {
       const s = S[i];
       // Net descent of ~8 m from trailhead to the pool.
-      const grade = lerp(8.4, CLEARING_Y, smoothstep(0.0, 0.88, s.t));
-      const roll = 1.7 * this.n.fbm(s.x * 0.02, s.z * 0.02, 3, 0.5);
+      const grade = lerp(this.region.pathStartY ?? 8.4, this.region.pathEndY ?? CLEARING_Y,
+        smoothstep(0.0, 0.88, s.t));
+      const roll = (this.region.pathRoll ?? 1.7) * this.n.fbm(s.x * 0.02, s.z * 0.02, 3, 0.5);
       const flat = this.trail.clearing(s.t);
-      y[i] = lerp(grade + roll, CLEARING_Y, flat);
+      y[i] = lerp(grade + roll, this.region.pathEndY ?? CLEARING_Y, flat);
     }
     for (let pass = 0; pass < 24; pass++) {
       for (let i = 1; i < y.length - 1; i++) y[i] = (y[i - 1] + y[i] * 2 + y[i + 1]) * 0.25;
     }
     this.pathY = y;
+  }
+
+  _buildFloodPools() {
+    this.floodPools = (this.region.floodPools || []).map((spec, index) => {
+      const p = this.trail.pointAt(spec.t, new THREE.Vector3());
+      const tan = this.trail.tangentAt(spec.t, new THREE.Vector3()).normalize();
+      const nx = -tan.z, nz = tan.x;
+      return {
+        ...spec, index,
+        x: p.x + nx * spec.side,
+        z: p.z + nz * spec.side,
+        tx: tan.x, tz: tan.z, nx, nz,
+        surfaceY: this._pathYAt(spec.t) - (spec.bankDrop ?? 0.26),
+      };
+    });
+  }
+
+  /** Depth of chapter-authored standing water at a world position. */
+  floodWaterDepth(x, z) {
+    let depth = 0;
+    for (const pool of this.floodPools) {
+      const dx = x - pool.x, dz = z - pool.z;
+      const u = (dx * pool.tx + dz * pool.tz) / pool.along;
+      const v = (dx * pool.nx + dz * pool.nz) / pool.across;
+      const r2 = u * u + v * v;
+      if (r2 >= 1) continue;
+      const floor = pool.surfaceY - 0.10 - pool.depth * Math.pow(1 - r2, 0.58);
+      depth = Math.max(depth, pool.surfaceY - Math.max(floor, this.height?.(x, z) ?? floor));
+    }
+    return depth;
+  }
+
+  _cutFloodPools(x, z, h) {
+    for (const pool of this.floodPools) {
+      const dx = x - pool.x, dz = z - pool.z;
+      const u = (dx * pool.tx + dz * pool.tz) / pool.along;
+      const v = (dx * pool.nx + dz * pool.nz) / pool.across;
+      const r2 = u * u + v * v;
+      if (r2 >= 1.12) continue;
+      const edge = smoothstep(1.12, 0.82, r2);
+      const floor = pool.surfaceY - 0.10 - pool.depth * Math.pow(Math.max(0, 1 - r2), 0.58);
+      h = lerp(h, Math.min(h, floor), edge);
+    }
+    return h;
   }
 
   _pathYAt(t) {
@@ -181,8 +228,9 @@ export class Terrain {
      */
     const away = smoothstep(hw + 0.4, hw + 9, d);
     const ridge = nb.ridged(x * 0.030, z * 0.030, 5, 0.52) * 0.5 + 0.5;
-    const shoulder = away * (0.55 + 1.9 * ridge);
-    const macro = smoothstep(hw, hw + 8, d) * 1.9 * n.fbm(x * 0.016, z * 0.016, 4, 0.5);
+    const relief = this.region.reliefScale ?? 1;
+    const shoulder = away * (0.55 + 1.9 * ridge) * relief;
+    const macro = smoothstep(hw, hw + 8, d) * 1.9 * relief * n.fbm(x * 0.016, z * 0.016, 4, 0.5);
 
     /* Two detail bands, and where the third one went.
      *
@@ -225,7 +273,7 @@ export class Terrain {
      * because the exponent makes its crest narrower than the grid can hold. */
     const rootPlate = 0.44 * Math.pow(Math.max(0, n.ridged(x * 0.26, z * 0.26, 2, 0.5)), 1.6);
 
-    const wild = py + shoulder + macro + detail + crease + rootPlate;
+    const wild = py + shoulder + macro + detail * relief + crease * relief + rootPlate * relief;
 
     // The trail surface: worn concave, softened toward the verges. The dish is
     // shallow but it is what makes the path hold the light differently from
@@ -239,13 +287,14 @@ export class Terrain {
     const trailSurf = py + dish + detail * 0.16 + rootPlate * 0.62;
 
     let h = lerp(trailSurf, wild, smoothstep(hw * 0.75, hw + 2.2, d));
+    h = this._cutFloodPools(x, z, h);
 
     /* Stream channel. Cut *to* the bed world/brook.js authored rather than
      * subtracted from whatever the noise left here — see that file for why
      * the difference is the whole of the bug where the river rendered
      * nothing. It is the same expression the water mesh and the audio panner
      * read, so the three cannot drift apart. */
-    h = this.brook.cut(h, q, hw);
+    if (this.region.brook !== false) h = this.brook.cut(h, q, hw);
 
     /* The ruins reshape the ground, and they do it after the stream and before
      * the pool. After the stream because one of the things the plan restores
@@ -264,7 +313,9 @@ export class Terrain {
      * which is the stretch where the terrace is bare earthwork and where a
      * stream would have re-incised its channel through it in the centuries
      * since anyone maintained the place. */
-    if (z < -342.5 && z > -354 && t > 0.855) h = this.brook.cut(h, q, hw);
+    if (this.region.brook !== false && z < -342.5 && z > -354 && t > 0.855) {
+      h = this.brook.cut(h, q, hw);
+    }
 
     /* The causeway.
      *
@@ -275,6 +326,8 @@ export class Terrain {
      * z = -382 there is no path to protect, and holding the guard on down
      * there would leave a dry hump standing in the middle of the rapids.
      */
+    if (this.region.baseWater === false) return h;
+
     const guard = 1 - (1 - causeway(d)) * smoothstep(-382, -377, z);
 
     /* Plunge pool. An absolute bed with a steep rim, not a bowl subtracted
@@ -344,6 +397,19 @@ export class Terrain {
    * polished tar. One channel, two regimes, no second attribute.
    */
   evalWet(x, z, h, q) {
+    let floodWet = 0;
+    for (const pool of this.floodPools) {
+      const dx = x - pool.x, dz = z - pool.z;
+      const u = (dx * pool.tx + dz * pool.tz) / pool.along;
+      const v = (dx * pool.nx + dz * pool.nz) / pool.across;
+      const r2 = u * u + v * v;
+      floodWet = Math.max(floodWet, 0.96 * smoothstep(1.18, 0.82, r2));
+    }
+    if (this.region.baseWater === false) {
+      return this.region.brook === false
+        ? floodWet
+        : Math.max(floodWet, 0.80 * this.brook.wetAt(q), this.brook.soakAt(q));
+    }
     const dPool = Math.hypot(x - POOL.x, z - POOL.z);
     let w = 0.80 * smoothstep(POOL.r + 7, POOL.r - 2, dPool);
     w = Math.max(w, 0.80 * this.brook.wetAt(q));

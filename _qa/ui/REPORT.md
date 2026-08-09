@@ -318,3 +318,37 @@ Average: **4.9 / 5**. No category is below 3.
 | Polish | 5 | 修复发生在生成与碰撞合同层，不依赖关卡特例。 |
 
 Average: **5.0 / 5**。无 P0/P1 遗留。
+
+# Four-region Rebuild QA · 2026-08-10
+
+### P0 — 第二至四章复用了第一章完整世界
+
+- 根因：章节只替换 `Trail` 控制点和终点 `ChapterLandmarks`；地形、植被、遗迹与水系仍使用第一章固定种子和完整生成器。
+- 修复：新增 `region-profile.js`，四章使用独立 terrain/vegetation/ruin/audio seed，并分别控制路线海拔、地表起伏、雾光、植被生态和水系。第二至四章不再构建第一章遗迹台地、深潭、瀑布镜面与喷雾。
+- 第二章：7 片真实浅水、低堤、枯立木、较开放远林和半沉门庭；水面合并为 1 draw call。
+- 第三章：路线净抬升约 18 m、起伏倍率 1.58、裸岩石鳍、稀疏风折林和双塔；水体 0 draw calls，溪流/瀑布声关闭。
+- 第四章：起伏倍率 0.44、植被密度约 60%、4 片长窄人工蓄水、石质渠沿和完整源头装置；水面合并为 1 draw call。
+
+### P1 — 区域地图仍误画第一章遗迹与深潭
+
+- 修复：折叠地图按 `Terrain.floodPools` 的真实中心、方向和长短轴投影每一片水面；非第一章隐藏静态遗迹与深潭，标签分别改为积水盆地、裸露山脊、源头台地。
+- 响应式复验：`platform-layout-flooded-threshold-map-390x844.png`、`platform-layout-listening-ridge-map-320x568.png`、`platform-layout-source-engine-map-390x844.png` 均无页面溢出，真实路线、玩家朝向、证据与区域参照可读。
+
+### 路线与性能复验
+
+- 移动 low 四章最小净空 `0.673 / 0.584 / 1.346 / 1.055 m`，桌面高密度为 `0.975 / 1.556 / 1.014 / 0.806 m`；要求 `0.562 m`。
+- 两档四章陡坡样本均为 `0`，真实泥路均从起点连通至 `t=0.955`。
+- 场景证据：`shots/chapter2-region-v2`、`shots/chapter2-water-side-v2`、`shots/chapter3-region-v2`、`shots/chapter4-region-v2`。
+- 本地 QA 唯一控制台错误为统计接口对 localhost 的预期 CORS 拒绝；未发现渲染、输入或运行时异常。
+
+## 重建后评分
+
+| Category | Score (1–5) | Notes |
+|---|---:|---|
+| Region identity | 4 | 四章地貌、密度、雾光和终点构图可区分；真机辨识率待线上体验确认。 |
+| Route readability | 5 | 移动与桌面四章均通过整段真实碰撞连通审计。 |
+| Map accuracy | 5 | 路线、玩家、证据和区域水面均来自当前章世界坐标。 |
+| Performance | 5 | 新浅水最多 1 draw call；第三章 0 水面；无新增全屏 pass。 |
+| Responsive UX | 5 | 390×844 与 320×568 地图和场景证据无溢出。 |
+
+Average: **4.8 / 5**。无 P0/P1 遗留；区域辨识的最终判断留给线上真机体验。

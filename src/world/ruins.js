@@ -825,7 +825,8 @@ export class Ruins {
    * @param {number} seed
    * @param {import('../player/collision.js').CollisionWorld} [collision]
    */
-  constructor(renderer, terrain, trail, plan, seed = 8823, collision = null) {
+  constructor(renderer, terrain, trail, plan, seed = 8823, collision = null,
+              { compose = true } = {}) {
     this.terrain = terrain;
     this.trail = trail;
     this.plan = plan;
@@ -848,6 +849,8 @@ export class Ruins {
     this._signalClock = 0;
 
     this.material = makeStoneMaterial(renderer);
+
+    if (!compose) return;
 
     const B = new StoneBuilder();
     const ctx = { terrain, trail, plan };

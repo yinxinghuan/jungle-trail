@@ -197,6 +197,7 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
 .jt-map__ruins path,.jt-map__route-corridor,.jt-map__route-base,.jt-map__route-progress { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .jt-map__canopy { fill: rgba(58,87,67,.10); stroke: rgba(39,53,47,.16); stroke-width: 1; stroke-dasharray: 2 4; }
 .jt-map__pool { fill: rgba(57,94,89,.14); stroke: rgba(57,94,89,.32); stroke-width: 1.5; }
+.jt-map__flood { fill: rgba(55,96,91,.16); stroke: rgba(47,79,75,.28); stroke-width: 1; }
 .jt-map__ruins path { stroke: rgba(39,53,47,.22); stroke-width: 3; }
 .jt-map__route-corridor { stroke: rgba(49,72,58,.13); stroke-width: 13; }
 .jt-map__route-base { stroke: rgba(39,53,47,.58); stroke-width: 2.2; stroke-dasharray: 1 7; }

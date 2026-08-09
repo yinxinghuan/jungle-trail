@@ -611,7 +611,8 @@ export class Vegetation {
    * @param {import('../player/collision.js').CollisionWorld} [collision]
    */
   constructor(renderer, terrain, trail, seed = 7717, ruins = null, collision = null,
-              { densityScale = 1, atlasPx = ATLAS_PX } = {}) {
+              { densityScale = 1, atlasPx = ATLAS_PX, speciesScale = {},
+                wind = 0.13, windDir = [0.86, 0.51] } = {}) {
     this.renderer = renderer;
     this.terrain = terrain;
     this.trail = trail;
@@ -624,6 +625,7 @@ export class Vegetation {
     this.time = 0;
     this.cells = [];
     this.densityScale = Math.max(0.35, Math.min(1, densityScale));
+    this.speciesScale = speciesScale;
     this.atlasPx = Math.max(512, Math.min(ATLAS_PX, atlasPx));
     const clue = ruins?.observationAnchors?.firstStone;
     this.clueSightline = clue ? {
@@ -633,8 +635,8 @@ export class Vegetation {
 
     this.uniforms = {
       uTime: { value: 0 },
-      uWind: { value: 0.13 },
-      uWindDir: { value: new THREE.Vector2(0.86, 0.51) },
+      uWind: { value: wind },
+      uWindDir: { value: new THREE.Vector2(windDir[0], windDir[1]).normalize() },
       uSunView: { value: new THREE.Vector3(0, 1, 0) },
       uSunColor: { value: new THREE.Color(1, 1, 1) },
       uSkyColor: { value: new THREE.Color(0.35, 0.45, 0.5) },
@@ -903,11 +905,13 @@ export class Vegetation {
          * passed the generous test above. Debris also conforms fully to the
          * ground, so it has no vertical extent to lift it clear the way a plant
          * does; there is nothing for the tolerance to buy. */
-        const wd = standingWater(px, pz, y, t.brook, q);
+        const wd = t.region?.baseWater === false ? 0 : standingWater(px, pz, y, t.brook, q);
         if (wd > (name === 'litterMat' ? 0.005 : 0.06)) continue;
+        const floodDepth = t.floodWaterDepth?.(px, pz) || 0;
+        if (floodDepth > (name === 'litterMat' ? 0.005 : 0.06)) continue;
         // The scour zone along the brook — see BANK_CLEAR.
         const bc = BANK_CLEAR[name];
-        if (bc !== undefined
+        if (t.region?.brook !== false && bc !== undefined
             && t.brook.clearAt(q) < bc * (0.45 + 1.1 * bankJitter(px, pz))) continue;
         t.normal(px, pz, nrm);
 
@@ -978,7 +982,8 @@ export class Vegetation {
          * quietly halved the whole forest. The gain is set so the expectation
          * comes back above one — probabilities over one simply always accept,
          * which is what makes the dense knots saturate. */
-        const p = accept(ctx) * (0.08 + 10.9 * clump * clump);
+        const p = accept(ctx) * (this.speciesScale[name] ?? 1)
+          * (0.08 + 10.9 * clump * clump);
         if (p <= 0 || rng() > p) continue;
         const placement = place(ctx);
         const solid = this.species[name]?.[placement.v]?.hi?.solid;

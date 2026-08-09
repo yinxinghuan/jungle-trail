@@ -55,12 +55,15 @@ export class Ambience {
    * @param {Function} [o.contextFactory]  test seam: () => AudioContext-like
    * @param {Document|null} [o.doc]        test seam: null skips DOM listeners
    */
-  constructor({ camera, trail, terrain, walker, seed = DEFAULT_SEED, contextFactory, doc }) {
+  constructor({ camera, trail, terrain, walker, seed = DEFAULT_SEED,
+                waterfall = true, brook = true, contextFactory, doc }) {
     this.camera = camera;
     this.trail = trail;
     this.terrain = terrain;
     this.walker = walker;
     this.seed = seed;
+    this.waterfallEnabled = waterfall;
+    this.brookEnabled = brook;
     this._makeCtx = contextFactory
       || (() => new (globalThis.AudioContext || globalThis.webkitAudioContext)());
 
@@ -420,7 +423,8 @@ export class Ambience {
     const bal = fallsBalance(dFalls);
     const cut = airCutoff(dFalls);
     for (const part of ['rumble', 'cascade', 'spray']) {
-      set(this._pos[part].gain.gain, this._lv('falls') * bal[part]);
+      set(this._pos[part].gain.gain,
+        this.waterfallEnabled ? this._lv('falls') * bal[part] : 0);
       this._pos[part].lp.frequency.setTargetAtTime(cut, now, SMOOTH);
     }
 
@@ -428,7 +432,7 @@ export class Ambience {
      * channel to stay abreast of the walker — the nearest water is always
      * the loudest, and a fixed point would pass behind you and fade out
      * even while you walk beside the stream. */
-    const bg = brookGain(t);
+    const bg = this.brookEnabled ? brookGain(t) : 0;
     set(this._pos.babble.gain.gain, this._lv('brook') * bg);
     if (bg > 0.001) {
       const p = this.trail.pointAt(t, this._v);

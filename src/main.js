@@ -29,6 +29,7 @@ const ui = {
   mapCloseLabel: $('map-close-label'), mapRoute: $('map-route-base'),
   mapRouteCorridor: $('map-route-corridor'), mapRouteProgress: $('map-route-progress'), mapPlayer: $('map-player'),
   mapScaleLine: $('map-scale-line'), mapScaleLabel: $('map-scale-label'),
+  mapRegionFeatures: $('map-region-features'),
   mapEvidenceNodes: $('map-evidence-nodes'), mapLandmarkNodes: $('map-landmark-nodes'),
   mapCanopyLabel: $('map-canopy-label'),
   mapObjectiveLabel: $('map-objective-label'),
@@ -82,6 +83,12 @@ const unlockAll = bootParams.get('unlock') === 'all';
 const requestedChapter = chapterById(bootParams.get('chapter'));
 let chapter = unlockAll || progressStore.value.unlocked.includes(requestedChapter.id)
   ? requestedChapter : CHAPTERS[0];
+const regionMapLabel = {
+  'flooded-threshold': 'mapFloodplain',
+  'listening-ridge': 'mapRidge',
+  'source-engine': 'mapSanctuary',
+}[chapter.id] || 'mapCanopy';
+ui.mapCanopyLabel.textContent = t(regionMapLabel);
 let objective = chapter;
 let investigation = new InvestigationSession(objective);
 let surveyActive = false;
@@ -224,6 +231,27 @@ function updateMapProjection() {
   ui.mapRoute.setAttribute('d', routeD);
   ui.mapRouteCorridor.setAttribute('d', routeD);
   ui.mapRouteProgress.setAttribute('d', routeD);
+  const baseWater = game.region?.baseWater !== false;
+  document.querySelector('.jt-map__pool')?.toggleAttribute('hidden', !baseWater);
+  document.querySelector('.jt-map__ruins')?.toggleAttribute('hidden', !game.region?.baseRuins);
+  const canopy = document.querySelector('.jt-map__canopy');
+  if (canopy) canopy.style.opacity = game.chapter.id === 'flooded-threshold' ? '0.42' : '1';
+  ui.mapRegionFeatures.replaceChildren(...(game.terrain.floodPools || []).map((pool) => {
+    const path = svgNode('path');
+    const points = Array.from({ length: 36 }, (_, index) => {
+      const angle = index / 36 * Math.PI * 2;
+      const along = Math.cos(angle) * pool.along;
+      const across = Math.sin(angle) * pool.across;
+      return mapProjection.point(
+        pool.x + pool.tx * along + pool.nx * across,
+        pool.z + pool.tz * along + pool.nz * across,
+      );
+    });
+    path.setAttribute('class', 'jt-map__flood');
+    path.setAttribute('d', `${points.map((point, index) =>
+      `${index ? 'L' : 'M'}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join('')}Z`);
+    return path;
+  }));
   const scaleMetres = 100;
   const scaleWidth = scaleMetres * scale;
   ui.mapScaleLine.setAttribute('d', `M0 0v-5m0 3h${scaleWidth.toFixed(1)}m0-3v5`);

@@ -12,6 +12,8 @@ import { Sky } from './render/sky.js';
 import { Vegetation } from './world/vegetation.js';
 import { RuinPlan, Ruins } from './world/ruins.js';
 import { Water, IMPACT, LIP } from './world/water.js';
+import { FloodplainWater } from './world/floodplain-water.js';
+import { EmptyWater } from './world/empty-water.js';
 import { Walker } from './player/controller.js';
 import { CollisionWorld } from './player/collision.js';
 import {
@@ -25,6 +27,7 @@ import { Ambience } from './audio/engine.js';
 import { DebugOverlay } from './debug.js';
 import { chapterById } from './game/chapters.js';
 import { ChapterLandmarks } from './world/chapter-landmarks.js';
+import { regionProfile } from './world/region-profile.js';
 
 /* Quality tiers.
  *
@@ -67,6 +70,7 @@ class Game {
       screenX: 0, screenY: 0, bearing: 0,
     };
     this.chapter = chapterById(chapterId);
+    this.region = regionProfile(this.chapter.id);
 
     const hash = new URLSearchParams(location.hash.slice(1));
     this.pinnedTier = TIER_ORDER.includes(location.hash.slice(1)) ? location.hash.slice(1)
@@ -132,7 +136,9 @@ class Game {
     this.camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.08, 900);
 
     this.sky = new Sky(this.renderer);
-    this.sky.setSun(38, 152);
+    this.sky.setSun(this.region.sunElevation, this.region.sunAzimuth);
+    this.sky.uniforms.uGroundColor.value.setHex(this.region.skyGround);
+    this.sky.uniforms.uHazeColor.value.setHex(this.region.skyHaze);
     scene.add(this.sky.mesh);
 
     /* Depth cue. Real jungle air is thick with water vapour and the visibility
@@ -158,7 +164,7 @@ class Game {
      * sage as they receded — the middle distance was not losing detail
      * gradually, it was being clamped flat. A darker, greyer haze lets the far
      * boles keep their silhouettes while still closing the corridor off. */
-    scene.fog = new THREE.FogExp2(0x323c2c, 0.038);
+    scene.fog = new THREE.FogExp2(this.region.fogColor, this.region.fogDensity);
 
     const sl = this.sky.sunLight();
     this.sun = new THREE.DirectionalLight(sl.color, sl.intensity);
@@ -239,7 +245,9 @@ class Game {
      * puts a well of light under itself and a thick one does not. This is what
      * is left: the isotropic floor under everything, which still has to exist,
      * because there is no black in a jungle shadow. */
-    this.hemi = new THREE.HemisphereLight(0x82a081, 0x63513a, 0.55);
+    this.hemi = new THREE.HemisphereLight(
+      this.region.hemiSky, this.region.hemiGround, this.region.hemiIntensity,
+    );
     scene.add(this.hemi);
 
     /* The scene used to carry a second, weak, unshadowed DirectionalLight here
@@ -261,8 +269,10 @@ class Game {
      * the finished heightfield to know where the ground is under every block,
      * and the vegetation needs the finished geometry so that it can grow on
      * the stone and refuse to grow through it. */
-    this.ruinPlan = new RuinPlan(this.trail);
-    this.terrain = new Terrain(this.trail, undefined, this.ruinPlan);
+    this.ruinPlan = this.region.baseRuins ? new RuinPlan(this.trail) : null;
+    this.terrain = new Terrain(
+      this.trail, this.region.terrainSeed, this.ruinPlan, this.region,
+    );
     this.terrainMat = makeTerrainMaterial(this.renderer);
     scene.add(this.terrain.build(this.terrainMat));
 
@@ -272,8 +282,10 @@ class Game {
      * every frame, after that identity has deliberately been batched away. */
     this.collision = new CollisionWorld({ cellSize: 4 });
 
-    this.ruins = new Ruins(this.renderer, this.terrain, this.trail, this.ruinPlan,
-                           undefined, this.collision);
+    this.ruins = new Ruins(
+      this.renderer, this.terrain, this.trail, this.ruinPlan,
+      this.region.ruinSeed, this.collision, { compose: this.region.baseRuins },
+    );
     scene.add(this.ruins.root);
 
     this.chapterLandmarks = new ChapterLandmarks(
@@ -285,10 +297,17 @@ class Game {
       ...this.chapterLandmarks.observationAnchors,
     };
 
+    const vegetationOptions = {
+      densityScale: this.region.vegetationDensity * (this.mobileLike ? 0.50 : 1),
+      atlasPx: this.mobileLike ? 768 : undefined,
+      speciesScale: this.region.speciesScale,
+      wind: this.chapter.id === 'flooded-threshold' ? 0.09 : 0.13,
+      windDir: this.chapter.id === 'flooded-threshold' ? [0.72, 0.69] : [0.86, 0.51],
+    };
     this.veg = new Vegetation(
       this.renderer, this.terrain, this.trail, undefined,
-      this.ruins, this.collision,
-      this.mobileLike ? { densityScale: 0.50, atlasPx: 768 } : undefined,
+      this.region.baseRuins ? this.ruins : null, this.collision,
+      vegetationOptions,
     );
     scene.add(this.veg.root);
 
@@ -299,8 +318,11 @@ class Game {
      * changing. It registers no collision: the causeway that keeps the trail
      * out of the pool is ground, and the walker is already stopped by the
      * bank's fifty-degree slope rather than by anything here. */
-    this.water = new Water(this.renderer, this.terrain, this.trail,
-                           { tier: this.tier });
+    this.water = this.region.baseWater
+      ? new Water(this.renderer, this.terrain, this.trail, { tier: this.tier })
+      : this.terrain.floodPools.length
+        ? new FloodplainWater(this.renderer, this.terrain, this.trail, { tier: this.tier })
+        : new EmptyWater(this.chapter.id);
     scene.add(this.water.root);
 
     this.sky.bake(scene);
@@ -311,7 +333,7 @@ class Game {
      * was coming from: those blades are near-horizontal and face straight up
      * into it. The hemisphere light above carries the fill instead, because
      * its upper colour is the underside of the canopy rather than the sky. */
-    scene.environmentIntensity = 0.34;
+    scene.environmentIntensity = this.region.environmentIntensity;
 
     this.walker = new Walker(this.camera, this.terrain, this.trail,
                              this.collision).attach(this.canvas);
@@ -359,7 +381,13 @@ class Game {
       trail: this.trail,
       terrain: this.terrain,
       walker: this.walker,
+      seed: this.region.ambienceSeed,
+      waterfall: this.region.baseWater,
+      brook: this.region.brook !== false,
     });
+    for (const [layer, db] of Object.entries(this.region.audioTrim || {})) {
+      this.ambience.setLayerTrim(layer, db);
+    }
     /* The score guessed at these from the terrain constants before the falls
      * existed — a base at the pool's rim and a lip on the cliff plane. Both
      * were out: the real impact is 1.3 m short in z and 0.8 m higher, and the
@@ -369,8 +397,10 @@ class Game {
      * lip is audible — it is most of the vertical separation between the
      * rumble and the hiss, which is the cue that tells you how tall the thing
      * in front of you is. */
-    this.ambience.setWaterfallPosition(IMPACT, LIP);
-    this.atmos.setFallsPlume(IMPACT);
+    if (this.region.baseWater) {
+      this.ambience.setWaterfallPosition(IMPACT, LIP);
+      this.atmos.setFallsPlume(IMPACT);
+    }
   }
 
   _configureShadow() {
@@ -684,6 +714,8 @@ class Game {
     this.walker.dispose();
     this.body.dispose();
     this.chapterLandmarks?.dispose();
+    this.water?.dispose();
+    this.ruins?.dispose?.();
     this.atmos?.dispose();
     this.canopy?.dispose();
     this.debug?.dispose();
