@@ -8,6 +8,7 @@ const shot = (name) => fileURLToPath(new URL(name, root));
 
 const browser = await chromium.launch({ headless: true });
 const requestedWidth = Number(process.argv[2] || 0);
+const mapOnly = process.argv.includes('--map-only');
 const targets = [
   { width: 390, height: 844, locale: 'en' },
   { width: 320, height: 568, locale: 'zh' },
@@ -25,10 +26,10 @@ for (const target of targets) {
   await page.locator('#start-button').click();
   await page.locator('#sleeping').waitFor({ state: 'hidden', timeout: 120_000 });
   await page.waitForTimeout(500);
-  await page.screenshot({ path: shot(`platform-layout-field-hud-${target.width}x${target.height}.png`), fullPage: true });
-  await page.locator('#map-button').click();
+  if (!mapOnly) await page.screenshot({ path: shot(`platform-layout-field-hud-${target.width}x${target.height}.png`), fullPage: true, timeout: 120_000 });
+  await page.evaluate(() => document.querySelector('#map-button').click());
   await page.locator('#map-panel').waitFor({ state: 'visible' });
-  await page.screenshot({ path: shot(`platform-layout-field-map-${target.width}x${target.height}.png`), fullPage: true });
+  await page.screenshot({ path: shot(`platform-layout-field-map-${target.width}x${target.height}.png`), fullPage: true, timeout: 120_000 });
   const state = await page.evaluate(() => ({
     mapVisible: !document.querySelector('#map-panel').hidden,
     paused: window.__game.paused,
@@ -38,13 +39,36 @@ for (const target of targets) {
     overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     overflowY: document.documentElement.scrollHeight - document.documentElement.clientHeight,
     traceCount: document.querySelectorAll('#map-evidence-list li').length,
+    landmarkCount: document.querySelectorAll('#map-landmark-nodes .jt-map__landmark').length,
+    nextLandmark: document.querySelector('#map-objective').textContent,
+    sheetOverflowX: document.querySelector('.jt-map__sheet').scrollWidth
+      - document.querySelector('.jt-map__sheet').clientWidth,
+    sheetScrollLeft: document.querySelector('.jt-map__sheet').scrollLeft,
   }));
   if (!state.mapVisible || !state.paused || state.traceCount !== 3
+      || state.landmarkCount !== 5 || !state.nextLandmark
       || state.overflowX > 0 || state.overflowY > 0
+      || state.sheetScrollLeft !== 0
       || state.controls.some((control) => control.width < 44 || control.height < 44)) {
     throw new Error(`Field UI contract failed at ${target.width}x${target.height}: ${JSON.stringify(state)}`);
   }
   console.log(JSON.stringify({ target, state }));
+  if (target.width === 390) {
+    await page.evaluate(() => document.querySelector('#map-close').click());
+    await page.evaluate(() => window.__game.goTo(0.78));
+    await page.evaluate(() => document.querySelector('#map-button').click());
+    await page.waitForTimeout(100);
+    await page.screenshot({ path: shot('platform-layout-field-map-ruins-390x844.png'), fullPage: true, timeout: 120_000 });
+    const progressed = await page.evaluate(() => ({
+      nextLandmark: document.querySelector('#map-objective').textContent,
+      sector: document.querySelector('#map-sector').textContent,
+      playerTransform: document.querySelector('#map-player').getAttribute('transform'),
+    }));
+    if (!progressed.nextLandmark || progressed.playerTransform.includes('130.00 364.00')) {
+      throw new Error(`Progressed map did not update: ${JSON.stringify(progressed)}`);
+    }
+    console.log(JSON.stringify({ target, progressed }));
+  }
   await context.close();
 }
 await browser.close();

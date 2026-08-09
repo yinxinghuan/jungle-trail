@@ -26,9 +26,12 @@ const ui = {
   mapEyebrow: $('map-eyebrow'), mapTitle: $('map-title'), mapSubtitle: $('map-subtitle'),
   mapCloseLabel: $('map-close-label'), mapRoute: $('map-route-base'),
   mapRouteProgress: $('map-route-progress'), mapPlayer: $('map-player'),
-  mapEvidenceNodes: $('map-evidence-nodes'), mapStartLabel: $('map-start-label'),
-  mapEndLabel: $('map-end-label'), mapObjectiveLabel: $('map-objective-label'),
+  mapEvidenceNodes: $('map-evidence-nodes'), mapLandmarkNodes: $('map-landmark-nodes'),
+  mapCanopyLabel: $('map-canopy-label'), mapWaterLabel: $('map-water-label'),
+  mapRuinsLabel: $('map-ruins-label'), mapObjectiveLabel: $('map-objective-label'),
   mapObjective: $('map-objective'), mapEvidenceList: $('map-evidence-list'),
+  mapSectorLabel: $('map-sector-label'), mapSector: $('map-sector'),
+  mapTracesLabel: $('map-traces-label'),
   mapExpeditionLabel: $('map-expedition-label'), mapChapters: $('map-chapters'),
   pausePanel: $('pause-panel'), pauseTitle: $('pause-title'), resume: $('resume-button'), trail: $('trail-button'),
   mode: $('mode-button'),
@@ -68,9 +71,12 @@ ui.mapEyebrow.textContent = t('fieldMap');
 ui.mapCloseLabel.textContent = t('close');
 ui.mapClose.setAttribute('aria-label', t('closeMap'));
 ui.mapObjectiveLabel.textContent = t('currentObjective');
+ui.mapSectorLabel.textContent = t('currentSector');
+ui.mapTracesLabel.textContent = t('surveyTraces');
 ui.mapExpeditionLabel.textContent = t('expeditionRoute');
-ui.mapStartLabel.textContent = t('trailhead');
-ui.mapEndLabel.textContent = t('destination');
+ui.mapCanopyLabel.textContent = t('mapCanopy');
+ui.mapWaterLabel.textContent = t('mapWater');
+ui.mapRuinsLabel.textContent = t('mapRuins');
 ui.mapRoute.closest('svg').setAttribute('aria-label', t('mapAria'));
 const progressStore = new ProgressStore();
 const bootParams = new URLSearchParams(location.search);
@@ -167,12 +173,14 @@ function formatTime(seconds) {
   return `${minutes}:${String(whole % 60).padStart(2, '0')}`;
 }
 
+const LANDMARK_T = [0.02, 0.27, 0.74, 0.86, 0.955];
+
 function landmarkFor(tValue) {
-  if (tValue >= 0.955) return 4;
-  if (tValue >= 0.86) return 3;
-  if (tValue >= 0.74) return 2;
-  if (tValue >= 0.27) return 1;
-  return 0;
+  let found = 0;
+  for (let index = 1; index < LANDMARK_T.length; index += 1) {
+    if (tValue >= LANDMARK_T[index]) found = index;
+  }
+  return found;
 }
 
 const svgNode = (name) => document.createElementNS('http://www.w3.org/2000/svg', name);
@@ -189,17 +197,83 @@ function mapPointAt(tValue) {
   return ui.mapRoute.getPointAtLength(routeLength * relative);
 }
 
+function appendLandmarkGlyph(group, index) {
+  const glyph = svgNode('path');
+  glyph.setAttribute('class', 'jt-map__landmark-glyph');
+  glyph.setAttribute('d', [
+    'M-4 5V-5M-7-2h6M-7 5h6',
+    'M-7 5-3-4 1 5M-1 5 4-6 8 5',
+    'M-7 5V-3h5v8M0 5V-7h7V5M-8 5H8',
+    'M-8 5V-5M8 5V-5M-8-5H8M-4 5V-1h8v6',
+    'M-7-5c0 5 3 5 3 10M0-5c0 5 3 5 3 10M7-5c0 5-3 5-3 10',
+  ][index]);
+  group.append(glyph);
+}
+
+function renderLandmarks(trailT) {
+  const fullNames = t(chapter.landmarksKey);
+  const mapNames = t(chapter.mapLandmarksKey || chapter.landmarksKey);
+  const current = landmarkFor(trailT);
+  const next = trailT >= LANDMARK_T.at(-1) ? current : Math.min(4, current + 1);
+  ui.mapLandmarkNodes.replaceChildren(...LANDMARK_T.map((position, index) => {
+    const point = mapPointAt(position);
+    const group = svgNode('g');
+    const state = index < current || trailT >= position ? 'is-passed'
+      : index === next ? 'is-next' : 'is-ahead';
+    group.setAttribute('class', `jt-map__landmark ${state}${index === current ? ' is-current' : ''}`);
+    group.setAttribute('transform', `translate(${point.x.toFixed(2)} ${point.y.toFixed(2)})`);
+    group.setAttribute('aria-label', fullNames[index]);
+    const circle = svgNode('circle');
+    circle.setAttribute('r', '10');
+    group.append(circle);
+    appendLandmarkGlyph(group, index);
+    const labelLayout = [
+      { left: false, y: 4 },
+      { left: true, y: 8 },
+      { left: false, y: 18 },
+      { left: true, y: 4 },
+      { left: false, y: -10 },
+    ][index];
+    const leftSide = labelLayout.left;
+    const sign = leftSide ? -1 : 1;
+    const connector = svgNode('path');
+    connector.setAttribute('class', 'jt-map__landmark-leader');
+    connector.setAttribute('d', `M${sign * 11} 0L${sign * 20} ${labelLayout.y}`);
+    group.append(connector);
+    const label = svgNode('text');
+    label.setAttribute('class', 'jt-map__landmark-label');
+    label.setAttribute('x', String(sign * 24));
+    label.setAttribute('y', String(labelLayout.y + 3));
+    label.setAttribute('text-anchor', leftSide ? 'end' : 'start');
+    label.textContent = mapNames[index];
+    group.append(label);
+    return group;
+  }));
+
+  const distance = Math.max(0, Math.round((LANDMARK_T[next] - trailT) * game.trail.length / 5) * 5);
+  ui.mapObjective.textContent = `${fullNames[next]} · ${t(distance > 0 ? 'distanceRemaining' : 'destinationReached', { n: distance })}`;
+  ui.mapSector.textContent = fullNames[current];
+}
+
 function renderMap() {
   if (!game) return;
   const trailT = game.walker.trailT;
   const routeLength = ui.mapRoute.getTotalLength();
   const relative = Math.min(1, Math.max(0, trailT / Math.max(0.01, objective.endT)));
   const playerPoint = mapPointAt(trailT);
-  ui.mapPlayer.setAttribute('transform', `translate(${playerPoint.x.toFixed(2)} ${playerPoint.y.toFixed(2)})`);
+  const aheadPoint = mapPointAt(Math.min(objective.endT, trailT + 0.008));
+  const tangent = game.trail.tangentAt(trailT);
+  const routeYaw = Math.atan2(-tangent.x, -tangent.z);
+  let viewDelta = game.walker.yaw - routeYaw;
+  while (viewDelta > Math.PI) viewDelta -= Math.PI * 2;
+  while (viewDelta < -Math.PI) viewDelta += Math.PI * 2;
+  const mapTangentAngle = Math.atan2(aheadPoint.x - playerPoint.x, -(aheadPoint.y - playerPoint.y));
+  const playerAngle = (mapTangentAngle + viewDelta) * 180 / Math.PI;
+  ui.mapPlayer.setAttribute('transform', `translate(${playerPoint.x.toFixed(2)} ${playerPoint.y.toFixed(2)}) rotate(${playerAngle.toFixed(2)})`);
   ui.mapRouteProgress.style.strokeDasharray = `${(routeLength * relative).toFixed(2)} ${routeLength.toFixed(2)}`;
   ui.mapTitle.textContent = t(chapter.titleKey);
   ui.mapSubtitle.textContent = `${t('chapterLabel', { n: chapter.number })} · ${Math.round(trailT * 100)}%`;
-  ui.mapObjective.textContent = t(objective.missionKey || chapter.missionKey);
+  renderLandmarks(trailT);
 
   ui.mapEvidenceNodes.replaceChildren();
   ui.mapEvidenceList.replaceChildren(...investigation.trackers.map((tracker, index) => {
@@ -259,10 +333,15 @@ function openMap() {
   resetStickUi();
   mapOpen = true;
   ui.mapPanel.hidden = false;
+  const mapSheet = ui.mapPanel.querySelector('.jt-map__sheet');
+  mapSheet.scrollLeft = 0;
   renderMap();
   ui.map.setAttribute('aria-expanded', 'true');
   applyPause();
-  requestAnimationFrame(() => ui.mapClose.focus());
+  requestAnimationFrame(() => {
+    ui.mapClose.focus({ preventScroll: true });
+    mapSheet.scrollLeft = 0;
+  });
 }
 
 function closeMap() {

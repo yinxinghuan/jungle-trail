@@ -2,7 +2,7 @@ export const CHAPTERS = [
   {
     id: 'trail-remembers', number: 1, titleKey: 'chapter1Title', subtitleKey: 'chapter1Subtitle',
     missionKey: 'chapter1Mission', conclusionKey: 'chapter1Conclusion',
-    landmarksKey: 'chapter1Landmarks', endT: 0.955,
+    landmarksKey: 'chapter1Landmarks', mapLandmarksKey: 'chapter1MapLandmarks', endT: 0.955,
     evidence: [
       { id: 'alloy-marker', anchor: 'firstStone', previewRange: 38, range: 22, hold: 1.1,
         aheadKey: 'evidence1Ahead', nearbyKey: 'evidence1Nearby', searchKey: 'evidence1Search',
@@ -19,7 +19,7 @@ export const CHAPTERS = [
   {
     id: 'flooded-threshold', number: 2, titleKey: 'chapter2Title', subtitleKey: 'chapter2Subtitle',
     missionKey: 'chapter2Mission', conclusionKey: 'chapter2Conclusion',
-    landmarksKey: 'chapter2Landmarks', endT: 0.955,
+    landmarksKey: 'chapter2Landmarks', mapLandmarksKey: 'chapter2MapLandmarks', endT: 0.955,
     evidence: [
       { id: 'drowned-datum', anchor: 'drownedDatum', previewRange: 40, range: 22, hold: 1.15,
         aheadKey: 'drownedAhead', nearbyKey: 'drownedNearby', searchKey: 'drownedSearch', focusKey: 'drownedFocus', recordedKey: 'drownedRecorded' },
@@ -33,7 +33,7 @@ export const CHAPTERS = [
   {
     id: 'listening-ridge', number: 3, titleKey: 'chapter3Title', subtitleKey: 'chapter3Subtitle',
     missionKey: 'chapter3Mission', conclusionKey: 'chapter3Conclusion',
-    landmarksKey: 'chapter3Landmarks', endT: 0.955,
+    landmarksKey: 'chapter3Landmarks', mapLandmarksKey: 'chapter3MapLandmarks', endT: 0.955,
     evidence: [
       { id: 'west-resonator', anchor: 'westResonator', previewRange: 46, range: 25, hold: 1.2,
         aheadKey: 'westAhead', nearbyKey: 'westNearby', searchKey: 'westSearch', focusKey: 'westFocus', recordedKey: 'westRecorded' },
@@ -47,7 +47,7 @@ export const CHAPTERS = [
   {
     id: 'source-engine', number: 4, titleKey: 'chapter4Title', subtitleKey: 'chapter4Subtitle',
     missionKey: 'chapter4Mission', conclusionKey: 'chapter4Conclusion',
-    landmarksKey: 'chapter4Landmarks', endT: 0.955,
+    landmarksKey: 'chapter4Landmarks', mapLandmarksKey: 'chapter4MapLandmarks', endT: 0.955,
     evidence: [
       { id: 'intake-ring', anchor: 'intakeRing', previewRange: 48, range: 26, hold: 1.2,
         aheadKey: 'intakeAhead', nearbyKey: 'intakeNearby', searchKey: 'intakeSearch', focusKey: 'intakeFocus', recordedKey: 'intakeRecorded' },

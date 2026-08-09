@@ -8,7 +8,8 @@
 | Entry frozen | `platform-layout-entry-frozen-390x844.png` | `platform-layout-entry-frozen-reduced-motion-320x568.png` | Pass; `running=false`, clear final frame |
 | Gameplay handoff | `platform-layout-gameplay-after-entry-390x844.png` | Completion capture also verifies short control-safe layout | Pass; `running=true`, HUD visible |
 | Field instrument HUD | `platform-layout-field-hud-390x844.png` | `platform-layout-field-hud-320x568.png` | Pass; chapter, landmark, route, evidence and tool rail remain readable without covering the trail |
-| Live field map | `platform-layout-field-map-390x844.png` | `platform-layout-field-map-320x568.png` | Pass; real position, three evidence states, destination and chapter rail; paused, no overflow |
+| Live field map | `platform-layout-field-map-390x844.png` | `platform-layout-field-map-320x568.png` | Pass; real position/heading, five landmarks, terrain references, three evidence states and chapter rail; paused, no overflow |
+| Progressed field map | `platform-layout-field-map-ruins-390x844.png` | narrow map uses the same responsive SVG | Pass; at `t=0.78`, sector becomes Ruins approach, next landmark becomes Water gate (~20 m), player transform updates |
 | First trace nearby | `platform-layout-clue-nearby-390x844.png` | — | Pass; target range active, observation not auto-completed |
 | First trace guided | `platform-layout-clue-guided-390x844.png` | — | Pass; after 4.5 s, outer notch points toward the target and copy names the metal-ringed stone |
 | First trace alloy | `platform-layout-clue-alloy-390x844.png` | — | Pass; ancient alloy ring and oxidation seam are visible beside, not under, the centre reticle |
@@ -40,6 +41,30 @@
 - Impact: the strong procedural scene and the interface felt authored at different levels of finish.
 - Fix: replaced the header with a bracketed field instrument showing chapter, landmark, route percent and evidence; added a coherent map/sound/pause tool rail and a functional folding survey map. The map projects real world anchors through `Trail.nearest()` rather than using a decorative screenshot.
 - Recheck: both target sizes show no page overflow, every action is at least 44 px, opening the map pauses the world, and exactly three live evidence states render. The first 320×568 pass placed the pace label too close to the lower edge; controls were raised 10 px and the matched state was recaptured.
+
+### P1 — Field map had no world references
+
+- Evidence: the first `platform-layout-field-map-*` pair from commit `aa4b7c4`.
+- Observation: one abstract dotted curve and three diamonds conveyed progress but not place; there was nothing a player could match to the stream, forest, ruins or water gate they had seen.
+- Impact: opening the map did not improve orientation and read as a decorative level-select illustration.
+- Fix: added five real chapter landmarks at the same progress thresholds used by the HUD, distinct landmark glyphs, dense-canopy regions, stream, ruin footprint, terminal pool, contours, grid, north marker and scale. The live readout now reports current sector, next named landmark and estimated remaining distance; the player pin rotates relative to the trail.
+- Recheck: automated states assert five landmarks and three evidence pins. At the trailhead the map reports Deep forest (~110 m); at `t=0.78` it reports Ruins approach and Water gate (~20 m), with a changed translated/rotated player transform.
+
+### P1 — Upper landmark labels overlapped
+
+- Evidence: first enhanced 390×844 and 320×568 map captures.
+- Observation: Ruins, Water gate and Falls occupy a deliberately compressed final route segment, so labels placed directly beside each node collided.
+- Impact: the newly added references became least readable where the map was most information-dense.
+- Fix: assigned alternating sides and staggered vertical offsets with leader lines; moved the low-priority ruin-platform terrain caption beneath the structure footprint.
+- Recheck: final start and ruins-progress captures keep all three names separate at both target widths.
+
+### P1 — Reopening the map could horizontally crop the sheet
+
+- Evidence: first `platform-layout-field-map-ruins-390x844.png`.
+- Observation: the scrollable paper retained a horizontal focus scroll when the close button regained focus, clipping the title and left map edge on the next open.
+- Impact: a normal open → close → move → open sequence could make the map look broken.
+- Fix: disable horizontal scrolling, focus the close control with `preventScroll`, and reset `scrollLeft` whenever the map opens.
+- Recheck: the repeated-open harness reports `sheetOverflowX=0`, `sheetScrollLeft=0`; the matched progressed capture shows the full paper and title.
 
 ### P1 — First frozen entry retained camera-motion blur
 
