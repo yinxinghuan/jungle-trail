@@ -7,7 +7,7 @@
 | Live entry motion | `platform-layout-entry-preview-motion-390x844.png` | reduced-motion skips motion by contract | Pass; `running=true` and 3.6 s duration asserted |
 | Entry frozen | `platform-layout-entry-frozen-390x844.png` | `platform-layout-entry-frozen-reduced-motion-320x568.png` | Pass; `running=false`, clear final frame |
 | Gameplay handoff | `platform-layout-gameplay-after-entry-390x844.png` | Completion capture also verifies short control-safe layout | Pass; `running=true`, HUD visible |
-| Field instrument HUD | `platform-layout-field-hud-390x844.png` | `platform-layout-field-hud-320x568.png` | Pass; chapter, landmark, route, evidence and tool rail remain readable without covering the trail |
+| Field instrument HUD | `platform-layout-field-hud-390x844.png` | `platform-layout-field-hud-320x568.png` | Pass; chapter, landmark and route remain structured while map/sound/pause/jump use readable unframed white icons over the live scene |
 | Live field map | `platform-layout-field-map-390x844.png` | `platform-layout-field-map-320x568.png` | Pass; map occupies the sheet, real sampled route/position/heading, five landmarks, terrain references, three evidence nodes, one objective and one trace count; paused, no overflow |
 | Progressed field map | `platform-layout-field-map-ruins-390x844.png` | narrow map uses the same responsive SVG | Pass; at `t=0.78`, next landmark becomes Water gate (~20 m), the traced route changes to brass and the player moves to the real northern ruins position |
 | First trace nearby | `platform-layout-clue-nearby-390x844.png` | — | Pass; target range active, observation not auto-completed |
@@ -24,9 +24,17 @@
 | Pause | `platform-layout-pause-390x844.png` | Panel width is fluid with 18 px side inset | Pass |
 | Completion first pass | `platform-layout-complete-first-pass-390x844.png` | `platform-layout-complete-first-pass-320x568.png` | P1 found |
 | Completion recheck | `platform-layout-complete-390x844.png` | `platform-layout-complete-320x568.png` | Pass |
-| External guest | `external-guest-entry-preview-motion-390x844.png`, `external-guest-field-map-390x844.png` | — | Pass; managed CTA remains visible and the map route, close control and objective remain usable beneath the external-only overlay |
+| External guest | `external-guest-entry-preview-motion-390x844.png`, `external-guest-field-hud-390x844.png`, `external-guest-field-map-390x844.png` | — | Pass; managed CTA remains visible, lower gameplay controls stay usable, and the opened map retains its close control and objective beneath the external-only overlay |
 
 ## Findings and fixes
+
+### P1 — Framed action controls interrupted the rainforest scene
+
+- Evidence: the gameplay HUD before this revision and the user's white icon reference.
+- Observation: the map, sound and pause controls sat inside a bordered dark rail, while jump used a second circular plate and visible text.
+- Impact: five persistent boundaries read as a floating utility panel and competed with the scene whenever the player moved or looked around.
+- Fix: removed the rail, borders, corner marks, blur plates and jump label from the live scene. The four actions now use one white rounded-stroke SVG language with restrained dark shadows; their transparent `44–74 px` hit regions, keyboard focus outline, accessible names and press-scale feedback remain intact. The map close button stays framed because it belongs to the paper surface rather than the immersive HUD.
+- Recheck: matched 390×844 and 320×568 captures keep every icon readable over both bright sky and dark foliage, report no viewport overflow and preserve minimum target sizes of `44 / 44 / 44 / 66–74 px`.
 
 ### P1 — Mobile fast movement required a second held button
 
@@ -39,7 +47,7 @@
 
 - Observation: two plain text rows and circular buttons carried too little hierarchy or world identity; there was no place to inspect the route.
 - Impact: the strong procedural scene and the interface felt authored at different levels of finish.
-- Fix: replaced the header with a bracketed field instrument showing chapter, landmark, route percent and evidence; added a coherent map/sound/pause tool rail and a functional folding survey map. The map projects real world anchors through `Trail.nearest()` rather than using a decorative screenshot.
+- Fix: replaced the header with a bracketed field instrument showing chapter, landmark, route percent and evidence; added a coherent map/sound/pause tool group and a functional folding survey map. The map projects real world anchors through `Trail.nearest()` rather than using a decorative screenshot.
 - Recheck: both target sizes show no page overflow, every action is at least 44 px, opening the map pauses the world, and exactly three live evidence states render. The first 320×568 pass placed the pace label too close to the lower edge; controls were raised 10 px and the matched state was recaptured.
 
 ### P1 — Field map had no world references
