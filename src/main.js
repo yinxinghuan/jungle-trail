@@ -3,6 +3,7 @@ import { locale, t } from './i18n.js';
 import { CHAPTERS, chapterById } from './game/chapters.js';
 import { InvestigationSession } from './game/investigation.js';
 import { ProgressStore } from './game/progress-store.js';
+import { ANALOG_DEAD_ZONE, ANALOG_WALK_EDGE } from './player/gait.js';
 
 document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
 const coarseInput = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
@@ -13,13 +14,22 @@ const ui = {
   chapterHeading: $('chapter-heading'), chapterNav: $('chapter-nav'),
   start: $('start-button'), status: $('build-status'), hud: $('hud'),
   progress: $('progress-fill'), landmark: $('landmark-label'), sound: $('sound-button'),
+  routePercent: $('route-percent'), hudChapterNumber: $('hud-chapter-number'), map: $('map-button'),
   clueProgress: $('clue-progress'), clueCount: $('clue-count'),
   mission: $('mission'), observation: $('observation'), observationProgress: $('observation-progress'),
   observationLabel: $('observation-label'), clueReveal: $('clue-reveal'),
   clueRevealKicker: $('clue-reveal-kicker'), clueRevealCopy: $('clue-reveal-copy'),
   routeCue: $('route-cue'),
   pause: $('pause-button'), look: $('look-zone'), ghost: $('ghost-gesture'), move: $('move-control'), knob: $('stick-knob'),
-  sprint: $('sprint-button'), jump: $('jump-button'), hint: $('hint'),
+  jump: $('jump-button'), hint: $('hint'), paceLabel: $('pace-label'),
+  mapPanel: $('map-panel'), mapBackdrop: $('map-backdrop'), mapClose: $('map-close'),
+  mapEyebrow: $('map-eyebrow'), mapTitle: $('map-title'), mapSubtitle: $('map-subtitle'),
+  mapCloseLabel: $('map-close-label'), mapRoute: $('map-route-base'),
+  mapRouteProgress: $('map-route-progress'), mapPlayer: $('map-player'),
+  mapEvidenceNodes: $('map-evidence-nodes'), mapStartLabel: $('map-start-label'),
+  mapEndLabel: $('map-end-label'), mapObjectiveLabel: $('map-objective-label'),
+  mapObjective: $('map-objective'), mapEvidenceList: $('map-evidence-list'),
+  mapExpeditionLabel: $('map-expedition-label'), mapChapters: $('map-chapters'),
   pausePanel: $('pause-panel'), pauseTitle: $('pause-title'), resume: $('resume-button'), trail: $('trail-button'),
   mode: $('mode-button'),
   complete: $('complete-panel'), completeTitle: $('complete-title'), completeTime: $('complete-time'),
@@ -34,7 +44,6 @@ const icons = {
   muted: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z"/><path d="m17 10 4 4m0-4-4 4"/></svg>',
   pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12"/></svg>',
   jump: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6m-5 5 5-5 5 5"/><path d="M6 19h12"/></svg>',
-  sprint: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17c4-1 6-5 7-10m-5 4 5-4 4 3m-6 4 3 2 5 1"/></svg>',
 };
 
 ui.sleepingCopy.textContent = t('sleepingCopy');
@@ -47,11 +56,22 @@ ui.observe.textContent = t('observe');
 ui.restart.textContent = t('restart');
 ui.retry.textContent = t('retry');
 ui.jump.innerHTML = `${icons.jump}<span>${t('jump')}</span>`;
-ui.sprint.innerHTML = `${icons.sprint}<span>${t('sprint')}</span>`;
 ui.sound.innerHTML = icons.sound;
 ui.pause.innerHTML = icons.pause;
+ui.map.setAttribute('aria-label', t('openMap'));
+ui.map.setAttribute('aria-expanded', 'false');
 ui.sound.setAttribute('aria-label', t('mute'));
 ui.pause.setAttribute('aria-label', t('pause'));
+ui.paceLabel.textContent = t('paceIdle');
+ui.move.dataset.pace = 'idle';
+ui.mapEyebrow.textContent = t('fieldMap');
+ui.mapCloseLabel.textContent = t('close');
+ui.mapClose.setAttribute('aria-label', t('closeMap'));
+ui.mapObjectiveLabel.textContent = t('currentObjective');
+ui.mapExpeditionLabel.textContent = t('expeditionRoute');
+ui.mapStartLabel.textContent = t('trailhead');
+ui.mapEndLabel.textContent = t('destination');
+ui.mapRoute.closest('svg').setAttribute('aria-label', t('mapAria'));
 const progressStore = new ProgressStore();
 const bootParams = new URLSearchParams(location.search);
 const unlockAll = bootParams.get('unlock') === 'all';
@@ -64,6 +84,7 @@ let surveyActive = false;
 let sessionMetrics = { hints: 0, offroute: 0 };
 
 function renderChapterNav() {
+  ui.hudChapterNumber.textContent = String(chapter.number).padStart(2, '0');
   ui.chapterHeading.textContent = `${t('chapterLabel', { n: chapter.number })} · ${t(chapter.titleKey)}`;
   ui.chapterNav.replaceChildren(...CHAPTERS.map((item) => {
     const button = document.createElement('button');
@@ -100,6 +121,7 @@ let startedAt = 0;
 let muted = false;
 let completed = false;
 let userPaused = false;
+let mapOpen = false;
 let docHidden = false;
 let offscreen = false;
 let hudRaf = 0;
@@ -134,7 +156,7 @@ function setError(message) {
 
 function applyPause() {
   if (!game) return;
-  const paused = userPaused || docHidden || offscreen;
+  const paused = userPaused || mapOpen || docHidden || offscreen;
   game.setPaused(paused);
   if (muted) game.ambience?.setMuted?.(true);
 }
@@ -151,6 +173,105 @@ function landmarkFor(tValue) {
   if (tValue >= 0.74) return 2;
   if (tValue >= 0.27) return 1;
   return 0;
+}
+
+const svgNode = (name) => document.createElementNS('http://www.w3.org/2000/svg', name);
+
+function evidenceTrailT(contract, index) {
+  const anchor = game?.observationAnchors?.[contract.anchor];
+  if (!anchor || !game?.trail) return (index + 1) / (objective.evidence.length + 1) * objective.endT;
+  return game.trail.nearest(anchor.x, anchor.z, {}).t;
+}
+
+function mapPointAt(tValue) {
+  const routeLength = ui.mapRoute.getTotalLength();
+  const relative = Math.min(1, Math.max(0, tValue / Math.max(0.01, objective.endT)));
+  return ui.mapRoute.getPointAtLength(routeLength * relative);
+}
+
+function renderMap() {
+  if (!game) return;
+  const trailT = game.walker.trailT;
+  const routeLength = ui.mapRoute.getTotalLength();
+  const relative = Math.min(1, Math.max(0, trailT / Math.max(0.01, objective.endT)));
+  const playerPoint = mapPointAt(trailT);
+  ui.mapPlayer.setAttribute('transform', `translate(${playerPoint.x.toFixed(2)} ${playerPoint.y.toFixed(2)})`);
+  ui.mapRouteProgress.style.strokeDasharray = `${(routeLength * relative).toFixed(2)} ${routeLength.toFixed(2)}`;
+  ui.mapTitle.textContent = t(chapter.titleKey);
+  ui.mapSubtitle.textContent = `${t('chapterLabel', { n: chapter.number })} · ${Math.round(trailT * 100)}%`;
+  ui.mapObjective.textContent = t(objective.missionKey || chapter.missionKey);
+
+  ui.mapEvidenceNodes.replaceChildren();
+  ui.mapEvidenceList.replaceChildren(...investigation.trackers.map((tracker, index) => {
+    const point = mapPointAt(evidenceTrailT(tracker.contract, index));
+    const diamond = svgNode('rect');
+    const isCurrent = index === investigation.activeIndex;
+    diamond.setAttribute('x', String(point.x - 6));
+    diamond.setAttribute('y', String(point.y - 6));
+    diamond.setAttribute('width', '12');
+    diamond.setAttribute('height', '12');
+    diamond.setAttribute('rx', '1');
+    diamond.setAttribute('transform', `rotate(45 ${point.x} ${point.y})`);
+    diamond.setAttribute('class', `jt-map__evidence${tracker.recorded ? ' is-recorded' : isCurrent ? ' is-current' : ''}`);
+    if (isCurrent && !tracker.recorded) {
+      const ring = svgNode('circle');
+      ring.setAttribute('cx', String(point.x));
+      ring.setAttribute('cy', String(point.y));
+      ring.setAttribute('r', '14');
+      ring.setAttribute('class', 'jt-map__evidence-ring');
+      ui.mapEvidenceNodes.append(ring);
+    }
+    ui.mapEvidenceNodes.append(diamond);
+
+    const item = document.createElement('li');
+    item.className = tracker.recorded ? 'is-recorded' : isCurrent ? 'is-current' : '';
+    item.textContent = t('mapTrace', {
+      n: String(index + 1).padStart(2, '0'),
+      status: t(tracker.recorded ? 'traceRecorded' : isCurrent ? 'traceCurrent' : 'traceUnknown'),
+    });
+    return item;
+  }));
+
+  ui.mapChapters.replaceChildren(...CHAPTERS.map((item) => {
+    const unlocked = unlockAll || progressStore.value.unlocked.includes(item.id);
+    const chapterComplete = !!progressStore.value.completed[item.id];
+    const li = document.createElement('li');
+    li.className = [unlocked && 'is-unlocked', item.id === chapter.id && 'is-current', chapterComplete && 'is-complete'].filter(Boolean).join(' ');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.disabled = !unlocked || item.id === chapter.id;
+    button.innerHTML = `<b>${['I', 'II', 'III', 'IV'][item.number - 1]}</b><span>${unlocked ? t(item.titleKey) : t('locked')}</span>`;
+    button.setAttribute('aria-label', `${t('chapterLabel', { n: item.number })} · ${unlocked ? t(item.titleKey) : t('locked')}`);
+    if (unlocked && item.id !== chapter.id) button.addEventListener('click', () => {
+      const url = new URL(location.href);
+      url.searchParams.set('chapter', item.id);
+      location.assign(url);
+    });
+    li.append(button);
+    return li;
+  }));
+}
+
+function openMap() {
+  if (!game || !entered || mapOpen) return;
+  cancelGhostDemo(true);
+  game.walker.setMoveInput(0, 0);
+  resetStickUi();
+  mapOpen = true;
+  ui.mapPanel.hidden = false;
+  renderMap();
+  ui.map.setAttribute('aria-expanded', 'true');
+  applyPause();
+  requestAnimationFrame(() => ui.mapClose.focus());
+}
+
+function closeMap() {
+  if (!mapOpen) return;
+  mapOpen = false;
+  ui.mapPanel.hidden = true;
+  ui.map.setAttribute('aria-expanded', 'false');
+  applyPause();
+  ui.map.focus();
 }
 
 function setObservationProgress(value) {
@@ -290,6 +411,7 @@ function updateHud(now = performance.now()) {
   lastHudAt = now;
   const trailT = game.walker.trailT;
   ui.progress.style.width = `${Math.min(100, Math.max(2, trailT * 100))}%`;
+  ui.routePercent.textContent = `${String(Math.round(trailT * 100)).padStart(2, '0')}%`;
   const landmark = landmarkFor(trailT);
   if (landmark !== previousLandmark) {
     previousLandmark = landmark;
@@ -470,8 +592,14 @@ function attachJoystick() {
     let dy = event.clientY - (rect.top + rect.height / 2);
     const length = Math.hypot(dx, dy);
     if (length > radius) { dx *= radius / length; dy *= radius / length; }
+    const strength = Math.min(1, Math.hypot(dx, dy) / radius);
     ui.knob.style.transform = `translate(${dx}px, ${dy}px)`;
     game.walker.setMoveInput(dx / radius, dy / radius);
+    const pace = strength <= ANALOG_DEAD_ZONE ? 'idle'
+      : strength < 0.38 ? 'slow'
+        : strength <= ANALOG_WALK_EDGE ? 'walk' : 'fast';
+    ui.move.dataset.pace = pace;
+    ui.paceLabel.textContent = t(`pace${pace[0].toUpperCase()}${pace.slice(1)}`);
     if (hintStage === 'move') {
       hintStage = 'done';
       ui.hint.hidden = true;
@@ -481,7 +609,7 @@ function attachJoystick() {
     if (pointerId !== event.pointerId) return;
     pointerId = null;
     game.walker.setMoveInput(0, 0);
-    ui.knob.style.transform = 'translate(0, 0)';
+    resetStickUi();
   };
   ui.move.addEventListener('pointerdown', (event) => {
     cancelGhostDemo(true);
@@ -492,6 +620,12 @@ function attachJoystick() {
   ui.move.addEventListener('pointermove', (event) => { if (event.pointerId === pointerId) update(event); });
   ui.move.addEventListener('pointerup', end);
   ui.move.addEventListener('pointercancel', end);
+}
+
+function resetStickUi() {
+  ui.knob.style.transform = 'translate(0, 0)';
+  ui.move.dataset.pace = 'idle';
+  ui.paceLabel.textContent = t('paceIdle');
 }
 
 function attachLook() {
@@ -518,13 +652,6 @@ function attachLook() {
 
 function attachActions() {
   ui.jump.addEventListener('pointerdown', (event) => { event.preventDefault(); game.walker.jump(); });
-  const sprint = (active) => game?.walker.setSprinting(active);
-  ui.sprint.addEventListener('pointerdown', (event) => {
-    event.preventDefault(); ui.sprint.setPointerCapture(event.pointerId); sprint(true);
-  });
-  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
-    ui.sprint.addEventListener(type, () => sprint(false));
-  }
 }
 
 function installLifecycle() {
@@ -657,6 +784,9 @@ function enterExperience() {
 
 ui.start.addEventListener('click', enterExperience);
 ui.retry.addEventListener('click', () => location.reload());
+ui.map.addEventListener('click', openMap);
+ui.mapClose.addEventListener('click', closeMap);
+ui.mapBackdrop.addEventListener('click', closeMap);
 ui.pause.addEventListener('click', () => {
   cancelGhostDemo(true); userPaused = true; ui.pausePanel.hidden = false; applyPause();
 });
@@ -699,12 +829,33 @@ ui.restart.addEventListener('click', () => {
   ui.hud.classList.remove('is-complete');
 });
 
+addEventListener('keydown', (event) => {
+  if (event.repeat || !entered) return;
+  if (event.code === 'KeyM') {
+    event.preventDefault();
+    if (mapOpen) closeMap(); else openMap();
+    return;
+  }
+  if (event.code !== 'Escape') return;
+  if (mapOpen) {
+    event.preventDefault();
+    closeMap();
+    return;
+  }
+  if (completed) return;
+  userPaused = !userPaused;
+  ui.pausePanel.hidden = !userPaused;
+  applyPause();
+});
+
 if (/(^|[#&])manual(&|$)/.test(location.hash)) {
   window.__expeditionQa = {
     completeChapter() {
       investigation.trackers.forEach((tracker) => tracker.reset(true));
       finishJourney();
     },
+    openMap,
+    closeMap,
     startSurvey,
     state: () => ({
       chapter: chapter.id, surveyActive, completed,

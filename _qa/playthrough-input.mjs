@@ -18,7 +18,7 @@ const cdp = await context.newCDPSession(page);
 await page.addInitScript(() => localStorage.setItem('game_locale', 'en'));
 await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
 await page.locator('#sleeping[data-preview-state="frozen"]').waitFor({ state: 'visible', timeout: 120_000 });
-await page.addStyleTag({ content: '#alteru-guest-banner{display:none!important}' });
+await page.addStyleTag({ content: '#alteru-guest-banner,#alteru-guest-login{display:none!important}' });
 await page.locator('#start-button').click();
 await page.locator('#sleeping').waitFor({ state: 'hidden', timeout: 120_000 });
 
@@ -41,19 +41,20 @@ const readState = () => page.evaluate(() => ({
   landmark: document.querySelector('#landmark-label').textContent,
 }));
 
-// Use the visible analogue stick and sprint control on the opening straight.
-// This intentionally validates a natural input segment; clue state coverage
-// lives in capture-clue.mjs and capture-navigation.mjs.
+// Push the real analogue stick through its walk and fast-walk bands on the
+// opening straight. Clue coverage lives in the dedicated capture scripts.
+const stickCenter = { x: 74, y: 770, id: 1 };
+const walkTouch = { x: 74, y: 742, id: 1 };
 const forwardTouch = { x: 74, y: 716, id: 1 };
-const sprintTouch = { x: 254, y: 792, id: 2 };
 let walking = await readState();
 const startedAt = Date.now();
-await touch('touchStart', [sprintTouch]);
-await page.waitForTimeout(120);
-const sawSprint = (await readState()).sprinting;
-await touch('touchEnd');
-await touch('touchStart', [{ x: 74, y: 770, id: 1 }]);
+await touch('touchStart', [stickCenter]);
+await touch('touchMove', [walkTouch]);
+await page.waitForTimeout(480);
+const walkState = await readState();
 await touch('touchMove', [forwardTouch]);
+await page.waitForTimeout(480);
+const fastState = await readState();
 while (Date.now() - startedAt < 9_000) {
   await page.waitForTimeout(180);
   await touch('touchMove', [forwardTouch]);
@@ -63,8 +64,8 @@ while (Date.now() - startedAt < 9_000) {
   }
 }
 await touch('touchEnd');
-if (!sawSprint || walking.trailT < 0.012) {
-  throw new Error(`Natural movement segment did not advance at sprint pace: ${JSON.stringify(walking)}`);
+if (walkState.sprinting || !fastState.sprinting || fastState.speed <= walkState.speed || walking.trailT < 0.012) {
+  throw new Error(`Natural analogue pace transition failed: ${JSON.stringify({ walkState, fastState, walking })}`);
 }
 
 const yawBefore = await page.evaluate(() => window.__game.walker.yaw);
@@ -80,6 +81,6 @@ if (Math.abs(yawAfter - yawBefore) < 0.08) {
 const result = await readState();
 await page.screenshot({ path: shot('platform-layout-natural-input-segment-390x844.png'), fullPage: true });
 
-console.log(JSON.stringify({ walking, sawSprint, yawBefore, yawAfter, result }));
+console.log(JSON.stringify({ walking, walkState, fastState, yawBefore, yawAfter, result }));
 await context.close();
 await browser.close();

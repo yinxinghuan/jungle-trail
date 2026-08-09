@@ -50,15 +50,16 @@ so the generated `dist/` works from arbitrary deployment subpaths.
 
 | Input | Action |
 |---|---|
-| Left touch joystick | Move |
+| Left touch joystick | Direction + slow walk / walk / fast walk by distance |
 | Drag right side | Look |
-| Hold Sprint | Sprint |
 | Tap Jump | Jump |
+| Tap Map | Open or close the live field map |
 | Click | Lock the pointer |
 | Mouse | Look |
 | W A S D | Move |
-| Shift | Sprint |
+| Shift | Fast walk |
 | Space | Jump |
+| M | Open or close the field map |
 | 1 - 5 | Teleport along the trail |
 | F3 | Show or hide the debug overlay |
 

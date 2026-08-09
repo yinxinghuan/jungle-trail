@@ -7,6 +7,8 @@
 | Live entry motion | `platform-layout-entry-preview-motion-390x844.png` | reduced-motion skips motion by contract | Pass; `running=true` and 3.6 s duration asserted |
 | Entry frozen | `platform-layout-entry-frozen-390x844.png` | `platform-layout-entry-frozen-reduced-motion-320x568.png` | Pass; `running=false`, clear final frame |
 | Gameplay handoff | `platform-layout-gameplay-after-entry-390x844.png` | Completion capture also verifies short control-safe layout | Pass; `running=true`, HUD visible |
+| Field instrument HUD | `platform-layout-field-hud-390x844.png` | `platform-layout-field-hud-320x568.png` | Pass; chapter, landmark, route, evidence and tool rail remain readable without covering the trail |
+| Live field map | `platform-layout-field-map-390x844.png` | `platform-layout-field-map-320x568.png` | Pass; real position, three evidence states, destination and chapter rail; paused, no overflow |
 | First trace nearby | `platform-layout-clue-nearby-390x844.png` | — | Pass; target range active, observation not auto-completed |
 | First trace guided | `platform-layout-clue-guided-390x844.png` | — | Pass; after 4.5 s, outer notch points toward the target and copy names the metal-ringed stone |
 | First trace alloy | `platform-layout-clue-alloy-390x844.png` | — | Pass; ancient alloy ring and oxidation seam are visible beside, not under, the centre reticle |
@@ -14,7 +16,7 @@
 | First trace recorded | `platform-layout-clue-recorded-390x844.png` | `platform-layout-clue-recorded-reduced-motion-320x568.png` | Pass; `recorded`, progress 1, count 1/1 asserted |
 | First trace advance signal | `platform-layout-clue-signal-390x844.png` | — | Pass; one-shot 38 m preview and positional cue asserted |
 | Off-trail recovery | `platform-layout-route-recovery-390x844.png` | — | Pass; 3.2 m lateral displacement yields correct view-relative direction |
-| Natural touch segment | `platform-layout-natural-input-segment-390x844.png` | — | Pass; real touch events advance, engage sprint and rotate camera without teleport/auto-walk |
+| Natural touch segment | `platform-layout-natural-input-segment-390x844.png` | — | Pass; real touch events transition from walk to fast walk and rotate camera without teleport/auto-walk |
 | Reduced look blur | `platform-layout-look-motion-low-blur-390x844.png` | `platform-layout-look-motion-low-blur-320x568.png` | Pass; low tier is 4 taps / 0.22-frame shutter and path edges remain readable during drag |
 | Look settle | `platform-layout-look-settled-low-blur-390x844.png` | — | Pass; matched frame returns to a crisp stationary image after input release |
 | Ghost look demo | `platform-layout-ghost-look-390x844.png` | — | Pass; finger and real camera motion visible together |
@@ -24,6 +26,20 @@
 | External guest | `external-guest-entry-preview-motion-390x844.png` | — | Pass; managed CTA remains usable over live entry |
 
 ## Findings and fixes
+
+### P1 — Mobile fast movement required a second held button
+
+- Observation: the analogue stick only scaled a walking pace; reaching the faster gait required holding a separate sprint button with another finger.
+- Impact: steering and speed selection felt disconnected, occupied both thumbs, and made precise transitions harder.
+- Fix: the stick now uses a continuous `12–62–100%` response curve from dead zone through walk to fast walk. The sprint button is removed; the dashed inner ring and text label expose the current pace without adding another action.
+- Recheck: `test/gait.test.js` proves the curve is continuous and monotonic. `_qa/playthrough-input.mjs` measured `1.03 m/s` at 54% displacement and `2.72 m/s` at full displacement while staying on the trail.
+
+### P1 — HUD read as a functional prototype instead of an expedition tool
+
+- Observation: two plain text rows and circular buttons carried too little hierarchy or world identity; there was no place to inspect the route.
+- Impact: the strong procedural scene and the interface felt authored at different levels of finish.
+- Fix: replaced the header with a bracketed field instrument showing chapter, landmark, route percent and evidence; added a coherent map/sound/pause tool rail and a functional folding survey map. The map projects real world anchors through `Trail.nearest()` rather than using a decorative screenshot.
+- Recheck: both target sizes show no page overflow, every action is at least 44 px, opening the map pauses the world, and exactly three live evidence states render. The first 320×568 pass placed the pace label too close to the lower edge; controls were raised 10 px and the matched state was recaptured.
 
 ### P1 — First frozen entry retained camera-motion blur
 
@@ -93,8 +109,8 @@
 
 ### P2 — Full three-finger automation was not a valid proxy for a person
 
-- Observation: Chromium changes pointer capture when a synthetic third touch is added to held joystick and sprint touches, producing misleading route stalls.
-- Decision: no full-playthrough pass is claimed from that setup. Natural input evidence is scoped to independently verifying the real joystick, sprint and look handlers; route containment and clue completion remain separate deterministic runtime tests.
+- Historical observation: Chromium changed pointer capture when a synthetic third touch was added to the old held joystick and sprint-button combination, producing misleading route stalls.
+- Current resolution: the sprint button no longer exists. Natural input evidence now drives one analogue stick through walk and fast-walk bands, then independently verifies look; route containment and clue completion remain separate deterministic runtime tests.
 
 ### P1 — Mobile frame cap and shutter made looking feel delayed
 

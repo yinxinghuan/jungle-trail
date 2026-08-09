@@ -18,12 +18,32 @@ export const JOG_STEP_LENGTH = 1.02;
  * every landing the moment the jump were retuned. Falling off a bank arrives
  * faster than this and is meant to read as harder. */
 export const JUMP_SPEED = 3.05;
+export const ANALOG_DEAD_ZONE = 0.12;
+export const ANALOG_WALK_EDGE = 0.62;
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const smooth = v => {
   const t = clamp01(v);
   return t * t * (3 - 2 * t);
 };
+
+/**
+ * Convert thumb-stick displacement into a continuous travel speed.
+ * The inner band gives enough range for careful framing; the outer band adds
+ * pace without asking the player to chord a second touch target.
+ */
+export function analogTravelSpeed(strength) {
+  const value = clamp01(Number(strength) || 0);
+  if (value <= ANALOG_DEAD_ZONE) return 0;
+  if (value <= ANALOG_WALK_EDGE) {
+    return WALK_SPEED * smooth(
+      (value - ANALOG_DEAD_ZONE) / (ANALOG_WALK_EDGE - ANALOG_DEAD_ZONE),
+    );
+  }
+  return WALK_SPEED + (JOG_SPEED - WALK_SPEED) * smooth(
+    (value - ANALOG_WALK_EDGE) / (1 - ANALOG_WALK_EDGE),
+  );
+}
 
 export function gaitBlend(speed) {
   return smooth((speed - WALK_SPEED) / (JOG_SPEED - WALK_SPEED));

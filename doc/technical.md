@@ -4,14 +4,14 @@
 
 - JavaScript ES modules、Three.js `0.170.0`、WebGL 2、GLSL、Web Audio 与 Vite `5.4.x`。
 - Vite `base: './'` 生成可部署到任意子路径的 `dist/`；运行时不依赖传统图片、模型、录音或关卡包。
-- DOM/CSS 提供实时场景入口、四章导航、HUD、触控、暂停、结算、错误和测绘挑战；全部功能图标使用统一描边 SVG。
+- DOM/CSS 提供实时场景入口、四章导航、野外调查 HUD、实时折叠地图、触控、暂停、结算、错误和测绘挑战；全部功能图标使用统一描边 SVG。
 - Node 内置测试验证证据状态机、存档合并与硬质植被路线间距；Playwright 验证四章真实碰撞注册、390×844、320×568、platform-layout 和 external-guest。
 - 进度先同步写入 `localStorage`，AlterU 内再通过 canonical `aigram-bridge.js` 静默写入永久 game UUID `8962baf6-4b6a-4ddc-892c-19252c297200` 对应的云存档。
 
 ## 2. 目录结构
 
 - `index.html`：长按防护、游戏 DOM、永久 UUID、`guest-shell.js` 与 Aigram bridge 入口。
-- `src/main.js`：章节选择、启动/预览、证据推进、调查模式、存档、HUD、触控和生命周期。
+- `src/main.js`：章节选择、启动/预览、证据推进、调查模式、存档、HUD、地图投影、触控和生命周期。
 - `src/game/chapters.js`：四章、三证据、地标、观察范围、稳定时间和 8 个测绘点的声明式合同。
 - `src/game/investigation.js`：与 DOM/Three.js 解耦的 `EvidenceTracker` 和 `InvestigationSession`。
 - `src/game/progress-store.js`：本地优先、云端合并、1 秒防抖写入与失败静默。
@@ -27,7 +27,7 @@
 - `src/ui.css`、`src/i18n.js`：视觉 token、响应式布局及中英双语。
 - `public/aigram-bridge.js`：与共享 canonical vanilla bridge 字节一致的平台桥。
 - `public/THIRD_PARTY_NOTICES.txt`：上游 Jungle Trail 和 Three.js 的分发许可。
-- `test/`：证据稳定、宽限、章节恢复、跨设备进度合并和路线间距测试。
+- `test/`：摇杆速度曲线、证据稳定、宽限、章节恢复、跨设备进度合并和路线间距测试。
 - `tools/route-safety.mjs`：加载四个完整生成世界，扫描道路中心线的硬质植被和不可行走坡度。
 - `tools/ui-qa.mjs`、`tools/shoot.mjs`、`_qa/ui/`、`shots/qa*`：真实运行状态与匹配机位证据。
 
@@ -35,13 +35,13 @@
 
 ### 状态、章节与生命周期
 
-`src/main.js` 管理 `sleeping → building → preview → ready-frozen → exploring → paused → chapter-complete / survey → error`。页面可见后只构建 URL 所选的一章；入口观察镜头结束后停止 RAF，点击才恢复实时渲染和音频。章节按钮通过 URL 切换并整页释放上一章，任何时刻只存在一个 WebGL 世界。
+`src/main.js` 管理 `sleeping → building → preview → ready-frozen → exploring ↔ map / paused → chapter-complete / survey → error`。页面可见后只构建 URL 所选的一章；入口观察镜头结束后停止 RAF，点击才恢复实时渲染和音频。地图打开时暂停世界、音频与观察计时，但保留当前章节实例，关闭后原地恢复。章节按钮通过 URL 切换并整页释放上一章，任何时刻只存在一个 WebGL 世界。
 
 四章均复用地形、材质、植被、水体和遗迹生成语言，但 `Trail` 使用不同控制点，`ChapterLandmarks` 使用不同合并几何：第一章 10 米级残损水门，第二章池中半沉门庭，第三章 14 米双塔与合金声盘，第四章约 22 米宽的开放式水源装置。新增石材、合金、绿锈和倒影分别合并；低画质不会为第二章增加完整场景镜面 pass。
 
 ### 证据与重复挑战
 
-每章合同声明 3 个依次出现的 evidence。`EvidenceTracker.update()` 只处理当前目标：9% 对准半径、14% 保持半径、120 ms 防抖、350 ms 宽限、1.05–1.4 秒稳定时间。冲刺、暂停、隐藏和离屏不累积。`Game.observationProbe()` 把语义世界点投影为距离、可见性、屏幕方向和短边归一化中心偏差。
+每章合同声明 3 个依次出现的 evidence。`EvidenceTracker.update()` 只处理当前目标：9% 对准半径、14% 保持半径、120 ms 防抖、350 ms 宽限、1.05–1.4 秒稳定时间。快走、地图、暂停、隐藏和离屏不累积。`Game.observationProbe()` 把语义世界点投影为距离、可见性、屏幕方向和短边归一化中心偏差。
 
 主线完成后开放测绘挑战。每章的 8 个安全锚点由两组交错序列抽取 3 个，程序化小型石碑/合金环只在测绘中显示。安静模式 4.5 秒后提供方向帮助，专家模式延迟到 8 秒；结果保存最好时间、提示次数和偏航恢复次数，不接排行榜。
 
@@ -65,7 +65,9 @@
 
 ### 输入、音频与响应式
 
-移动端左摇杆半径 52 px，右侧拖动观察，跳跃和冲刺使用 Pointer Events；桌面保留 Pointer Lock、WASD、Shift、Space。路径辅助只修正明确前进且距中心 7.5 米内的移动方向，不旋转相机。离路 2.4 米持续 1.2 秒显示恢复方向，回到 1.5 米内隐藏。
+移动端左摇杆半径 52 px，右侧拖动观察，跳跃使用 Pointer Events。`src/player/gait.js` 的 `analogTravelSpeed()` 把 `0–12%` 设为死区、`12–62%` 平滑映射至 `1.45 m/s` 步行、`62–100%` 平滑映射至 `3.10 m/s` 快走；移动端没有独立加速按钮。桌面保留 Pointer Lock、WASD、Shift、Space，并用 M 切换地图。路径辅助只修正明确前进且距中心 7.5 米内的移动方向，不旋转相机。离路 2.4 米持续 1.2 秒显示恢复方向，回到 1.5 米内隐藏。
+
+折叠地图不创建第二套 Three.js 场景。`src/main.js` 用 `Trail.nearest()` 把当前章节 3 个真实证据锚点换算成路线进度，再投影到同一条 SVG 测绘路径；玩家针、已走路线、线索状态和四章解锁状态均来自实时游戏/存档。地图 DOM 只在打开时更新，关闭后没有逐帧开销。
 
 `Ambience.playClueHint()` 使用等功率 `PannerNode` 从证据世界位置播放短促双音，第三章因此天然支持左右方向比较；静音时 UI 外缘方位刻度提供等价视觉信息。所有 HUD、面板和章节按钮在 320×568 保持无溢出，触控动作至少 44×44 px。
 
@@ -75,8 +77,8 @@
 - 加新观察规则：扩展 `src/game/investigation.js` 的输入 sample，不在 DOM 中复制计时逻辑。
 - 调整大型地标、合金比例、塔距或倒影：`src/world/chapter-landmarks.js`；第一章原生遗迹改 `src/world/ruins.js`。
 - 改四章路线：`src/world/path.js` 的 `CONTROL_VARIANTS`；保持终点与 `spillway.js` 水系合同一致。
-- 改入口、章节导航、HUD、结算或测绘流程：`index.html`、`src/main.js`、`src/ui.css` 和 `src/i18n.js`。
-- 改移动、跳跃、相机或路径辅助：`src/player/`；改硬质植被路线安全间距：`src/world/trail-safety.js`。
+- 改入口、章节导航、HUD、地图、结算或测绘流程：`index.html`、`src/main.js`、`src/ui.css` 和 `src/i18n.js`。
+- 改摇杆步行/快走分界与曲线：`src/player/gait.js`；改移动、跳跃、相机或路径辅助：`src/player/controller.js`；改硬质植被路线安全间距：`src/world/trail-safety.js`。
 - 改性能：`src/app.js` 的 tier、`src/render/grade.js` 的采样、`src/world/vegetation.js` 的密度/图集和 `src/world/water.js` 的水体档位。
 - 改存档 schema：`src/game/progress-store.js`，提高 `SAVE_VERSION` 并保持旧数据 normalize；平台合同继续使用 canonical bridge。
 - 加排行榜或社交功能：另行按 `game-persistence` 规范接入；当前设计明确只保存个人进度。

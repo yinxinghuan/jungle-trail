@@ -140,17 +140,28 @@
 
   <div id="hud" class="jt-hud" hidden>
     <div class="jt-hud__top">
-      <div class="jt-progress" aria-live="polite">
-        <span id="landmark-label" class="jt-progress__label"></span>
-        <div class="jt-progress__track" aria-hidden="true"><i id="progress-fill"></i></div>
-        <div id="clue-progress" class="jt-clue-progress" aria-live="polite">
-          <span id="clue-mark" class="jt-clue-progress__mark" aria-hidden="true">
-            <svg viewBox="0 0 16 16"><path d="M8 2.5 13.5 8 8 13.5 2.5 8 8 2.5Z"/><path d="M8 5.5v5"/></svg>
-          </span>
-          <span id="clue-count"></span>
+      <div class="jt-progress jt-bracket" aria-live="polite">
+        <div class="jt-progress__chapter" aria-hidden="true">
+          <span id="hud-chapter-number">01</span><small>FIELD</small>
+        </div>
+        <div class="jt-progress__body">
+          <div class="jt-progress__heading">
+            <span id="landmark-label" class="jt-progress__label"></span>
+            <span id="route-percent" class="jt-progress__percent">02%</span>
+          </div>
+          <div class="jt-progress__track" aria-hidden="true"><i id="progress-fill"></i></div>
+          <div id="clue-progress" class="jt-clue-progress" aria-live="polite">
+            <span id="clue-mark" class="jt-clue-progress__mark" aria-hidden="true">
+              <svg viewBox="0 0 16 16"><path d="M8 2.5 13.5 8 8 13.5 2.5 8 8 2.5Z"/><path d="M8 5.5v5"/></svg>
+            </span>
+            <span id="clue-count"></span>
+          </div>
         </div>
       </div>
-      <div class="jt-hud__actions">
+      <div class="jt-hud__actions jt-tool-rail">
+        <button id="map-button" class="jt-icon-button" type="button" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 6 5-2 6 2 5-2v14l-5 2-6-2-5 2V6Z"/><path d="M9 4v14m6-12v14"/></svg>
+        </button>
         <button id="sound-button" class="jt-icon-button" type="button" aria-label="Mute sound"></button>
         <button id="pause-button" class="jt-icon-button" type="button" aria-label="Pause"></button>
       </div>
@@ -178,15 +189,57 @@
     </div>
     <div class="jt-controls">
       <div id="move-control" class="jt-stick" aria-label="Move joystick" role="application">
+        <span class="jt-stick__pace-ring" aria-hidden="true"></span>
         <span class="jt-stick__ring"></span><i id="stick-knob" class="jt-stick__knob"></i>
+        <span id="pace-label" class="jt-stick__label" aria-live="polite"></span>
       </div>
       <div class="jt-controls__actions">
-        <button id="sprint-button" class="jt-action-button" type="button"></button>
         <button id="jump-button" class="jt-action-button jt-action-button--jump" type="button"></button>
       </div>
     </div>
     <div id="hint" class="jt-hint" aria-live="polite"></div>
   </div>
+
+  <section id="map-panel" class="jt-map" hidden role="dialog" aria-modal="true" aria-labelledby="map-title">
+    <div id="map-backdrop" class="jt-map__backdrop" aria-hidden="true"></div>
+    <article class="jt-map__sheet">
+      <header class="jt-map__header">
+        <div>
+          <p id="map-eyebrow" class="jt-map__eyebrow"></p>
+          <h2 id="map-title"></h2>
+          <p id="map-subtitle" class="jt-map__subtitle"></p>
+        </div>
+        <button id="map-close" class="jt-map__close" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+          <span id="map-close-label"></span>
+        </button>
+      </header>
+      <div class="jt-map__survey">
+        <svg id="survey-map" class="jt-map__route" viewBox="0 0 260 410" role="img">
+          <path class="jt-map__contour" d="M28 351c38-34 48-80 30-124S45 112 81 51M222 369c-32-38-31-81-11-121s9-107-22-159"/>
+          <path class="jt-map__water" d="M29 80c35 18 44 47 23 78s-15 58 18 78 43 46 26 77"/>
+          <path id="map-route-base" class="jt-map__route-base" d="M130 364 C91 332 105 292 151 268 C188 248 180 204 128 191 C79 178 83 128 139 110 C179 97 169 66 131 42"/>
+          <path id="map-route-progress" class="jt-map__route-progress" d="M130 364 C91 332 105 292 151 268 C188 248 180 204 128 191 C79 178 83 128 139 110 C179 97 169 66 131 42"/>
+          <g id="map-evidence-nodes"></g>
+          <g id="map-player" class="jt-map__player" transform="translate(130 364)">
+            <circle r="13"/><path d="M0-8 5 5 0 2-5 5Z"/>
+          </g>
+          <g class="jt-map__destination" transform="translate(131 42)"><circle r="12"/><path d="M-5 2 0-5 5 2M-7 6H7"/></g>
+          <text id="map-start-label" class="jt-map__label" x="130" y="393" text-anchor="middle"></text>
+          <text id="map-end-label" class="jt-map__label" x="131" y="18" text-anchor="middle"></text>
+        </svg>
+        <aside class="jt-map__legend">
+          <p id="map-objective-label" class="jt-map__legend-title"></p>
+          <p id="map-objective" class="jt-map__objective"></p>
+          <ul id="map-evidence-list" class="jt-map__evidence-list"></ul>
+        </aside>
+      </div>
+      <footer class="jt-map__footer">
+        <p id="map-expedition-label" class="jt-map__footer-label"></p>
+        <ol id="map-chapters" class="jt-map__chapters"></ol>
+      </footer>
+    </article>
+  </section>
 
   <section id="pause-panel" class="jt-panel" hidden aria-labelledby="pause-title">
     <div class="jt-panel__content">

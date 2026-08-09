@@ -24,6 +24,8 @@ import {
   JOG_SPEED,
   WALK_STEP_LENGTH,
   JUMP_SPEED,
+  ANALOG_WALK_EDGE,
+  analogTravelSpeed,
   gaitBlend,
   stepLengthAt,
   gaitCycleRate,
@@ -207,7 +209,8 @@ export class Walker {
   }
 
   get isSprinting() {
-    return !!(this.touch.jog || this.keys.ShiftLeft || this.keys.ShiftRight);
+    return !!(this.touch.jog || this.keys.ShiftLeft || this.keys.ShiftRight
+      || Math.hypot(this.touch.x, this.touch.z) > ANALOG_WALK_EDGE);
   }
 
   /** Apply a touch-look delta measured in CSS pixels. */
@@ -270,24 +273,31 @@ export class Walker {
 
   _updateInput(dt) {
     const k = this.keys;
-    let fx = 0, fz = 0;
-    if (k.KeyW || k.ArrowUp) fz -= 1;
-    if (k.KeyS || k.ArrowDown) fz += 1;
-    if (k.KeyA || k.ArrowLeft) fx -= 1;
-    if (k.KeyD || k.ArrowRight) fx += 1;
+    let keyX = 0, keyZ = 0;
+    if (k.KeyW || k.ArrowUp) keyZ -= 1;
+    if (k.KeyS || k.ArrowDown) keyZ += 1;
+    if (k.KeyA || k.ArrowLeft) keyX -= 1;
+    if (k.KeyD || k.ArrowRight) keyX += 1;
+    let fx = keyX;
+    let fz = keyZ;
     fx += this.touch.x;
     fz += this.touch.z;
     const rawMag = Math.hypot(fx, fz);
     const inputStrength = Math.min(1, rawMag);
     if (rawMag > 0) { fx /= rawMag; fz /= rawMag; }
 
-    /* Shift selects a pace, while runBlend below describes the pace the body
-     * has actually reached. Keeping those separate prevents an idle Shift key,
-     * a steep blocked bank, or a slow backward jog from widening the lens and
-     * posing the body as if it were already travelling at full speed. */
-    const wantsJog = inputStrength > 0 && !!(k.ShiftLeft || k.ShiftRight || this.touch.jog);
+    /* A keyboard is binary, so Shift still selects its faster pace. A thumb
+     * stick is already analogue: its displacement owns both direction and
+     * speed, removing the old two-finger sprint chord. runBlend below remains
+     * based on actual travel so a blocked bank cannot pose a running body. */
+    const keyboardActive = Math.hypot(keyX, keyZ) > 0;
+    const touchStrength = Math.min(1, Math.hypot(this.touch.x, this.touch.z));
+    const wantsKeyboardJog = keyboardActive && !!(k.ShiftLeft || k.ShiftRight || this.touch.jog);
+    const desiredSpeed = keyboardActive
+      ? (wantsKeyboardJog ? JOG_SPEED : WALK_SPEED)
+      : analogTravelSpeed(touchStrength);
+    const wantsJog = desiredSpeed > WALK_SPEED + 0.01;
     this._paceBlend += ((wantsJog ? 1 : 0) - this._paceBlend) * response(3.8, dt);
-    const pace = lerp(WALK_SPEED, JOG_SPEED, this._paceBlend);
     /* Rotate the input into world space by the camera's own yaw. With the
      * 'YXZ' order used in _settleCamera, a yaw of theta puts the eye's forward
      * at (-sin, 0, -cos) and its right at (cos, 0, -sin); composing those with
@@ -354,7 +364,7 @@ export class Walker {
     this.slopeGrade += (grade - this.slopeGrade) * response(5, dt);
     this.slopeFactor = slopeFactor;
 
-    const target = pace * directionScale * slopeFactor * inputStrength;
+    const target = desiredSpeed * directionScale * slopeFactor;
     if (this.grounded) {
       const kResponse = response(inputStrength > 0 ? GROUND_ACCEL : GROUND_BRAKE, dt);
       const tx = inputStrength > 0 ? wx * target : 0;
