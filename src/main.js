@@ -3,6 +3,7 @@ import { locale, t } from './i18n.js';
 import { CHAPTERS, chapterById } from './game/chapters.js';
 import { InvestigationSession } from './game/investigation.js';
 import { ProgressStore } from './game/progress-store.js';
+import { mapHeadingDegrees } from './game/map-geometry.js';
 import { ANALOG_DEAD_ZONE, ANALOG_WALK_EDGE } from './player/gait.js';
 
 document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
@@ -13,7 +14,7 @@ const ui = {
   shell: $('shell'), canvas: $('view'), sleeping: $('sleeping'), sleepingCopy: $('sleeping-copy'),
   chapterHeading: $('chapter-heading'), chapterNav: $('chapter-nav'),
   start: $('start-button'), status: $('build-status'), hud: $('hud'),
-  progress: $('progress-fill'), landmark: $('landmark-label'), sound: $('sound-button'),
+  progress: $('progress-fill'), progressButton: $('map-summary-button'), landmark: $('landmark-label'), sound: $('sound-button'),
   routePercent: $('route-percent'), hudChapterNumber: $('hud-chapter-number'), map: $('map-button'),
   clueProgress: $('clue-progress'), clueCount: $('clue-count'),
   mission: $('mission'), observation: $('observation'), observationProgress: $('observation-progress'),
@@ -62,6 +63,8 @@ ui.sound.innerHTML = icons.sound;
 ui.pause.innerHTML = icons.pause;
 ui.map.setAttribute('aria-label', t('openMap'));
 ui.map.setAttribute('aria-expanded', 'false');
+ui.progressButton.setAttribute('aria-label', t('openMap'));
+ui.progressButton.setAttribute('aria-expanded', 'false');
 ui.sound.setAttribute('aria-label', t('mute'));
 ui.pause.setAttribute('aria-label', t('pause'));
 ui.paceLabel.textContent = t('paceIdle');
@@ -302,14 +305,7 @@ function renderMap() {
   const routeLength = ui.mapRoute.getTotalLength();
   const relative = Math.min(1, Math.max(0, trailT / Math.max(0.01, chapter.endT)));
   const playerPoint = mapProjection.point(game.walker.pos.x, game.walker.pos.z);
-  const aheadPoint = mapPointAt(Math.min(objective.endT, trailT + 0.008));
-  const tangent = game.trail.tangentAt(trailT);
-  const routeYaw = Math.atan2(-tangent.x, -tangent.z);
-  let viewDelta = game.walker.yaw - routeYaw;
-  while (viewDelta > Math.PI) viewDelta -= Math.PI * 2;
-  while (viewDelta < -Math.PI) viewDelta += Math.PI * 2;
-  const mapTangentAngle = Math.atan2(aheadPoint.x - playerPoint.x, -(aheadPoint.y - playerPoint.y));
-  const playerAngle = (mapTangentAngle + viewDelta) * 180 / Math.PI;
+  const playerAngle = mapHeadingDegrees(game.walker.yaw);
   ui.mapPlayer.setAttribute('transform', `translate(${playerPoint.x.toFixed(2)} ${playerPoint.y.toFixed(2)}) rotate(${playerAngle.toFixed(2)})`);
   ui.mapRouteProgress.style.strokeDasharray = `${(routeLength * relative).toFixed(2)} ${routeLength.toFixed(2)}`;
   ui.mapTitle.textContent = t(chapter.titleKey);
@@ -343,8 +339,11 @@ function renderMap() {
   ui.mapTraceCount.textContent = `${t('surveyTraces')} ${recorded}/${investigation.trackers.length}`;
 }
 
-function openMap() {
+let mapTrigger = ui.map;
+
+function openMap(event) {
   if (!game || !entered || mapOpen) return;
+  mapTrigger = event?.currentTarget || ui.map;
   cancelGhostDemo(true);
   game.walker.setMoveInput(0, 0);
   resetStickUi();
@@ -354,6 +353,7 @@ function openMap() {
   mapSheet.scrollLeft = 0;
   renderMap();
   ui.map.setAttribute('aria-expanded', 'true');
+  ui.progressButton.setAttribute('aria-expanded', 'true');
   applyPause();
   requestAnimationFrame(() => {
     ui.mapClose.focus({ preventScroll: true });
@@ -366,8 +366,9 @@ function closeMap() {
   mapOpen = false;
   ui.mapPanel.hidden = true;
   ui.map.setAttribute('aria-expanded', 'false');
+  ui.progressButton.setAttribute('aria-expanded', 'false');
   applyPause();
-  ui.map.focus();
+  mapTrigger.focus();
 }
 
 function setObservationProgress(value) {
@@ -881,6 +882,7 @@ function enterExperience() {
 ui.start.addEventListener('click', enterExperience);
 ui.retry.addEventListener('click', () => location.reload());
 ui.map.addEventListener('click', openMap);
+ui.progressButton.addEventListener('click', openMap);
 ui.mapClose.addEventListener('click', closeMap);
 ui.mapBackdrop.addEventListener('click', closeMap);
 ui.pause.addEventListener('click', () => {

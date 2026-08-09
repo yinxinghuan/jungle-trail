@@ -17,7 +17,7 @@ export const JOG_STEP_LENGTH = 1.02;
  * private copy of this number in the audio engine would silently mis-scale
  * every landing the moment the jump were retuned. Falling off a bank arrives
  * faster than this and is meant to read as harder. */
-export const JUMP_SPEED = 3.05;
+export const JUMP_SPEED = 3.75;
 export const ANALOG_DEAD_ZONE = 0.12;
 export const ANALOG_WALK_EDGE = 0.62;
 

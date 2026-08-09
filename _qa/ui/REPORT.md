@@ -9,6 +9,8 @@
 | Gameplay handoff | `platform-layout-gameplay-after-entry-390x844.png` | Completion capture also verifies short control-safe layout | Pass; `running=true`, HUD visible |
 | Field instrument HUD | `platform-layout-field-hud-390x844.png` | `platform-layout-field-hud-320x568.png` | Pass; chapter, landmark and route remain structured while map/sound/pause/jump use readable unframed white icons over the live scene |
 | Live field map | `platform-layout-field-map-390x844.png` | `platform-layout-field-map-320x568.png` | Pass; map occupies the sheet, real sampled route/position/heading, five landmarks, terrain references, three evidence nodes, one objective and one trace count; paused, no overflow |
+| Map cardinal headings | `platform-layout-map-heading-north-390x844.png`, `platform-layout-map-heading-east-390x844.png` | `platform-layout-map-heading-north-320x568.png` | Pass; camera north/west/east/south maps exactly to paper 0/-90/90/±180° with a centre dot and one outward arrow |
+| Jump apex | `platform-layout-jump-apex-390x844.png` | deterministic 320×568 physics uses the same constants | Pass; live fixed-step peak 0.701 m and airborne time 0.758 s |
 | Progressed field map | `platform-layout-field-map-ruins-390x844.png` | narrow map uses the same responsive SVG | Pass; at `t=0.78`, next landmark becomes Water gate (~20 m), the traced route changes to brass and the player moves to the real northern ruins position |
 | First trace nearby | `platform-layout-clue-nearby-390x844.png` | — | Pass; target range active, observation not auto-completed |
 | First trace guided | `platform-layout-clue-guided-390x844.png` | — | Pass; after 4.5 s, outer notch points toward the target and copy names the metal-ringed stone |
@@ -28,6 +30,29 @@
 | External guest | `external-guest-entry-preview-motion-390x844.png`, `external-guest-field-hud-390x844.png`, `external-guest-field-map-390x844.png` | — | Pass; managed CTA remains visible, lower gameplay controls stay usable, and the opened map retains its close control and objective beneath the external-only overlay |
 
 ## Findings and fixes
+
+### P1 — Map heading compounded camera yaw with the route tangent using the wrong sign
+
+- Evidence: the user's online report plus the old `mapTangentAngle + (walkerYaw - routeYaw)` calculation.
+- Observation: the marker could appear aligned while following one bend, then rotate opposite to the player's view after turning because paper tangent and world yaw used different X-axis signs.
+- Impact: the most important orientation cue contradicted movement and made both the map and the controls feel unreliable.
+- Fix: removed route-relative angle composition. The marker now uses a fixed position dot and one outward arrow driven directly by the camera world-forward vector; north, west, east and south have explicit unit and runtime contracts.
+- Recheck: actual SVG rotations are `0 / -90 / 90 / -180°` at both target viewports. Matched north/east captures keep the marker at the same trailhead position while only the arrow changes direction.
+
+### P1 — Paper material added an unexplained dark horizontal line
+
+- Evidence: the previous map captures and the user's comparison with the fold-out reference.
+- Observation: a synthetic 50% horizontal gradient crossed the route and read as a black seam, although the reference's material volume comes primarily from vertical accordion panels.
+- Impact: the line looked like a rendering defect and weakened the physical-paper illusion.
+- Fix: removed the horizontal gradient completely and rebuilt the surface as five broad vertical light-facing panels separated by paired narrow highlights and soft brown shadows.
+- Recheck: final 390×844 and 320×568 map captures contain no computed `180deg` fold layer and no dark line through the route centre.
+
+### P2 — Jump and map entry understated available actions
+
+- Observation: the former `3.05 m/s` takeoff peaked near `0.47 m`, while the large chapter/route instrument looked tappable but only the small map icon opened the map.
+- Impact: jumping felt ineffective around roots and stones, and the map had a needlessly narrow discovery target.
+- Fix: raised takeoff to `3.75 m/s` for a `0.72 m` theoretical peak, retaining the short anticipation and grounded landing; converted the full `290×72 / 215×63 px` top instrument into a semantic map button with press/focus feedback and shared focus restoration.
+- Recheck: deterministic live simulation measures `0.701 m` and `0.758 s`; both HUD target sizes open the map and expose `aria-expanded=true` without leaking input to the camera.
 
 ### P1 — Right-only look input felt indistinguishable from a frozen camera
 

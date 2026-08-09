@@ -81,15 +81,18 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
 .jt-bracket::before { left: -5px; border-left: 2px solid rgba(240,243,233,.78); border-top: 2px solid rgba(240,243,233,.78); border-bottom: 2px solid rgba(240,243,233,.78); }
 .jt-bracket::after { right: -5px; border-right: 2px solid rgba(240,243,233,.78); border-top: 2px solid rgba(240,243,233,.78); border-bottom: 2px solid rgba(240,243,233,.78); }
 .jt-progress { display: grid; grid-template-columns: 54px minmax(0,1fr); min-height: 72px; padding: 8px 10px 8px 8px; background: linear-gradient(105deg, rgba(10,20,16,.92), rgba(16,30,24,.74)); box-shadow: 0 10px 28px rgba(0,0,0,.2), inset 0 0 0 1px rgba(216,228,209,.12); backdrop-filter: blur(7px); }
+.jt-progress-button { width: 100%; color: inherit; border: 0; text-align: left; pointer-events: auto; transition: transform 120ms var(--jt-ease), filter 120ms var(--jt-ease); }
+.jt-progress-button:active { transform: scale(.985); filter: brightness(1.12); }
+.jt-progress-button:focus-visible { outline: 2px solid var(--jt-patina); outline-offset: 4px; }
 .jt-progress__chapter { display: grid; place-items: center; align-content: center; border-right: 1px solid rgba(177,141,85,.48); color: var(--jt-paper); }
 .jt-progress__chapter span { font: 500 22px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.03em; }
 .jt-progress__chapter small { margin-top: 5px; color: var(--jt-brass); font-size: 7px; font-weight: 750; letter-spacing: .18em; }
-.jt-progress__body { min-width: 0; padding-left: 10px; }
+.jt-progress__body { display: block; min-width: 0; padding-left: 10px; }
 .jt-progress__heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .jt-progress__label { display: block; overflow: hidden; font-size: 11px; font-weight: 700; letter-spacing: .11em; text-overflow: ellipsis; text-transform: uppercase; text-shadow: 0 2px 8px #000; white-space: nowrap; }
 .jt-progress__percent { flex: 0 0 auto; color: var(--jt-brass); font: 650 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .jt-progress__label.is-revealing { animation: jt-landmark 1.8s var(--jt-ease); }
-.jt-progress__track { height: 4px; margin-top: 8px; overflow: hidden; background: repeating-linear-gradient(90deg, rgba(240,243,233,.19) 0 1px, transparent 1px 12px); border-bottom: 1px solid rgba(240,243,233,.2); }
+.jt-progress__track { display: block; height: 4px; margin-top: 8px; overflow: hidden; background: repeating-linear-gradient(90deg, rgba(240,243,233,.19) 0 1px, transparent 1px 12px); border-bottom: 1px solid rgba(240,243,233,.2); }
 .jt-progress__track i { display: block; width: 2%; height: 100%; background: var(--jt-patina); transition: width 320ms var(--jt-ease); }
 .jt-clue-progress { display: flex; align-items: center; gap: 5px; min-height: 17px; margin-top: 6px; color: rgba(240,243,233,.65); font-size: 9px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; text-shadow: 0 2px 8px #000; }
 .jt-clue-progress__mark { display: grid; place-items: center; width: 16px; height: 16px; color: rgba(216,228,209,.48); transition: color 260ms var(--jt-ease), transform 420ms var(--jt-ease); }
@@ -160,8 +163,11 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
   animation: jt-map-open 220ms var(--jt-ease);
 }
 .jt-map__sheet::before { content: ""; position: absolute; z-index: 1; inset: 0; background:
-  linear-gradient(180deg, rgba(255,255,255,.035) 0 49.35%, rgba(255,255,255,.17) 49.7%, rgba(66,49,25,.12) 50.05%, rgba(66,49,25,.025) 50.55% 100%),
-  linear-gradient(90deg, rgba(255,255,255,.16) 0 32.65%, rgba(255,255,255,.28) 32.9%, rgba(69,51,25,.16) 33.25%, rgba(69,51,25,.075) 33.65% 66.05%, rgba(69,51,25,.16) 66.4%, rgba(255,255,255,.25) 66.72%, rgba(255,255,255,.11) 67.05% 100%);
+  linear-gradient(90deg,
+    rgba(255,255,255,.13) 0 19.45%, rgba(255,255,255,.27) 19.72%, rgba(76,57,29,.10) 20.05%, rgba(76,57,29,.045) 20.42% 39.45%,
+    rgba(76,57,29,.11) 39.72%, rgba(255,255,255,.25) 40.02%, rgba(255,255,255,.09) 40.38% 59.45%,
+    rgba(255,255,255,.24) 59.72%, rgba(76,57,29,.10) 60.04%, rgba(76,57,29,.04) 60.40% 79.45%,
+    rgba(76,57,29,.10) 79.72%, rgba(255,255,255,.24) 80.04%, rgba(255,255,255,.10) 80.40% 100%);
   pointer-events: none;
 }
 .jt-map__sheet::after { content: ""; position: absolute; z-index: 0; inset: 12px; border: 1px solid rgba(42,52,45,.26); box-shadow: inset 0 0 0 3px rgba(216,209,184,.7), inset 0 0 0 4px rgba(42,52,45,.14); pointer-events: none; }
@@ -189,8 +195,9 @@ button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: 
 .jt-map__route-corridor { stroke: rgba(49,72,58,.13); stroke-width: 13; }
 .jt-map__route-base { stroke: rgba(39,53,47,.58); stroke-width: 2.2; stroke-dasharray: 1 7; }
 .jt-map__route-progress { stroke: var(--jt-brass); stroke-width: 3.5; stroke-dasharray: 0 1; }
-.jt-map__player circle { fill: #e4dcc1; stroke: var(--jt-brass); stroke-width: 3; filter: drop-shadow(0 2px 2px rgba(39,53,47,.28)); }
-.jt-map__player path { fill: var(--jt-brass); }
+.jt-map__player-halo { fill: rgba(239,232,207,.92); stroke: var(--jt-paper-ink); stroke-width: 1.5; filter: drop-shadow(0 2px 2px rgba(39,53,47,.32)); }
+.jt-map__player-dot { fill: var(--jt-brass); stroke: var(--jt-paper-ink); stroke-width: 1; }
+.jt-map__player-heading { fill: var(--jt-brass); stroke: var(--jt-paper-ink); stroke-width: 1.35; stroke-linejoin: round; paint-order: stroke; }
 .jt-map__landmark circle { fill: var(--jt-paper); stroke: rgba(39,53,47,.58); stroke-width: 2; }
 .jt-map__landmark-glyph,.jt-map__landmark-leader { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .jt-map__landmark { color: rgba(39,53,47,.54); }
