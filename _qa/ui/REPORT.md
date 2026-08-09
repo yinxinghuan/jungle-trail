@@ -18,6 +18,7 @@
 | First trace advance signal | `platform-layout-clue-signal-390x844.png` | — | Pass; one-shot 38 m preview and positional cue asserted |
 | Off-trail recovery | `platform-layout-route-recovery-390x844.png` | — | Pass; 3.2 m lateral displacement yields correct view-relative direction |
 | Natural touch segment | `platform-layout-natural-input-segment-390x844.png` | — | Pass; real touch events transition from walk to fast walk and rotate camera without teleport/auto-walk |
+| Full-width look zone | `platform-layout-look-zone-hint-390x844.png` | `platform-layout-look-zone-hint-320x568.png` | Pass; upper 68% spans the viewport, left/centre/right drags rotate, lower controls and map button do not leak, and two-finger move + look remains independent |
 | Reduced look blur | `platform-layout-look-motion-low-blur-390x844.png` | `platform-layout-look-motion-low-blur-320x568.png` | Pass; low tier is 4 taps / 0.22-frame shutter and path edges remain readable during drag |
 | Look settle | `platform-layout-look-settled-low-blur-390x844.png` | — | Pass; matched frame returns to a crisp stationary image after input release |
 | Ghost look demo | `platform-layout-ghost-look-390x844.png` | — | Pass; finger and real camera motion visible together |
@@ -27,6 +28,14 @@
 | External guest | `external-guest-entry-preview-motion-390x844.png`, `external-guest-field-hud-390x844.png`, `external-guest-field-map-390x844.png` | — | Pass; managed CTA remains visible, lower gameplay controls stay usable, and the opened map retains its close control and objective beneath the external-only overlay |
 
 ## Findings and fixes
+
+### P1 — Right-only look input felt indistinguishable from a frozen camera
+
+- Evidence: the previous `62%`-wide right-side hit region and the user's online interaction report.
+- Observation: a drag beginning on the left or centre of the scene produced no response even though those areas looked identical to the active right side.
+- Impact: players could reasonably conclude that camera rotation was broken before discovering an invisible boundary.
+- Fix: expanded the camera drag surface to the full width of the upper `68%` of the viewport, moved the real HUD buttons above it, and reserved the lower `32%` for movement, jump and hand rest. The onboarding hand now crosses the scene centre and the bilingual prompt says to drag the upper scene rather than the right side.
+- Recheck: at both 390×844 and 320×568, real touch drags from left, centre and right changed yaw by `0.15–0.22 rad`; the lower-zone and map-button leakage were exactly `0`. A simultaneous joystick + camera gesture retained `75–92%` forward input while rotating the view.
 
 ### P1 — Framed action controls interrupted the rainforest scene
 
@@ -141,7 +150,7 @@
 
 - Observation: the initial look hint disappeared after the first camera drag.
 - Impact: a new player could discover observation but not forward movement.
-- Fix: onboarding is now sequential: right-side look → left-circle move → dismiss.
+- Fix: onboarding is now sequential: upper-scene look → left-circle move → dismiss.
 - Recheck: onboarding now drives the real `Walker.lookBy()` and analogue movement APIs. `platform-layout-ghost-look-390x844.png` shows the shared finger while the forest has real camera-motion blur; slow-frame progress is capped so the demo cannot skip its visible middle state.
 
 ### P1 — Observation projection used half the intended screen radius

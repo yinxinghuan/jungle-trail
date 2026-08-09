@@ -654,9 +654,9 @@ function runMoveGhost() {
 
 function runLookGhost() {
   if (userInteracted || !game || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const startX = innerWidth * 0.61;
-  const startY = innerHeight * 0.46;
-  const endX = innerWidth * 0.83;
+  const startX = innerWidth * 0.30;
+  const startY = innerHeight * 0.40;
+  const endX = innerWidth * 0.70;
   let progress = 0;
   let previousFrame = performance.now();
   let previousX = startX;
