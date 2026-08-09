@@ -33,12 +33,12 @@ const CONTROL_VARIANTS = {
   ],
   'listening-ridge': [
     [0, 24], [0, 0], [9, -28], [15, -58], [4, -89], [-13, -118],
-    [-19, -149], [-8, -179], [12, -207], [17, -239], [4, -271], [-7, -301],
+    [-19, -149], [-8, -179], [12, -207], [17, -239], [4, -271], [7, -301],
     [1, -330], [0, -358], [0, -378],
   ],
   'source-engine': [
     [0, 24], [0, 0], [-5, -29], [7, -58], [13, -89], [0, -118],
-    [-16, -149], [-11, -179], [7, -209], [14, -240], [-2, -270], [-5, -301],
+    [-16, -149], [-11, -179], [7, -209], [14, -240], [-2, -270], [7, -301],
     [1, -330], [0, -358], [0, -378],
   ],
 };
@@ -170,7 +170,13 @@ export class Trail {
     let w = 1.12;
     w -= smoothstep(0.18, 0.55, t) * 0.34;          // narrowing, still readable on a phone
     w += smoothstep(0.62, 0.80, t) * 0.45;          // opening toward the light
-    w += smoothstep(0.80, 0.95, t) * 3.1;           // clearing floor
+    /* The ruin gate begins at t≈0.81, so the walkable clearing has to open
+     * before the first fallen lintel rather than after it. The old 0.80–0.95
+     * ramp left only about 1.2 m of dirt at the gate: the visible rubble and
+     * its conservative stone proxies could span that whole ribbon, forcing a
+     * player into the understory. This earlier shoulder gives the authored
+     * obstacles room to be walked around while keeping them fully solid. */
+    w += smoothstep(0.78, 0.86, t) * 3.1;           // clearing floor before gate
     return w;
   }
 

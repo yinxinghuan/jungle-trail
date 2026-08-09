@@ -760,13 +760,25 @@ function slab(B, ctx, x, y, z, sx, sy, sz, eu, rng, o = {}) {
  * down in one piece.
  */
 function rubble(B, ctx, o) {
-  const { x, z, r, n, rng, size = 1, sink = 0.55, near = null, seg = 2 } = o;
+  const {
+    x, z, r, n, rng, size = 1, sink = 0.55, near = null, seg = 2,
+    trailClear = 0,
+  } = o;
+  const trailQuery = {};
   for (let i = 0; i < n; i++) {
     const ang = rng() * 6.283;
     const rr = r * Math.sqrt(rng());
     const bx = x + Math.cos(ang) * rr, bz = z + Math.sin(ang) * rr;
     if (near && !near(bx, bz)) continue;
     const s = size * (0.22 + Math.pow(rng(), 2.4) * 1.05);
+    if (trailClear > 0) {
+      ctx.trail.nearest(bx, bz, trailQuery);
+      /* Rubble is deliberately irregular, so use the largest possible plan
+       * half-extent for this size before its random axes are drawn. Rejected
+       * pieces remain absent from both the merged mesh and collision world —
+       * the route stays visibly open instead of becoming non-solid scenery. */
+      if (trailQuery.dist < trailClear + s * 0.70) continue;
+    }
     const gy = ctx.terrain.height(bx, bz);
     const hy = s * (0.30 + rng() * 0.22);
     _eu.set((rng() - 0.5) * 0.9, rng() * 6.283, (rng() - 0.5) * 0.9, 'YXZ');
@@ -1158,16 +1170,23 @@ export class Ruins {
     rubble(B, ctx, { x: 7.5, z: -362.5, r: 5.0, n: 12, rng, size: 0.9, sink: 0.45 });
 
     /* ---- loose stone through the clearing --------------------------------
-     * Between the gate and the pool, and specifically *on* the trail in two
-     * places. A block you have to step around is worth ten in the middle
-     * distance, because it is the only one the viewer gets to judge at arm's
-     * length. */
-    rubble(B, ctx, { x: 1.0, z: -324.0, r: 7.0, n: 22, rng, size: 0.95, sink: 0.55 });
-    rubble(B, ctx, { x: -2.0, z: -344.0, r: 8.0, n: 20, rng, size: 0.9, sink: 0.6 });
-    rubble(B, ctx, { x: 10.0, z: -336.0, r: 8.0, n: 16, rng, size: 0.85, sink: 0.6 });
+     * Between the gate and the pool, close enough to the trail shoulder for
+     * arm's-length scale, but never spanning the central walking lane. */
+    rubble(B, ctx, {
+      x: 1.0, z: -324.0, r: 7.0, n: 22, rng,
+      size: 0.95, sink: 0.55, trailClear: 1.0,
+    });
+    rubble(B, ctx, {
+      x: -2.0, z: -344.0, r: 8.0, n: 20, rng,
+      size: 0.9, sink: 0.6, trailClear: 1.0,
+    });
+    rubble(B, ctx, {
+      x: 10.0, z: -336.0, r: 8.0, n: 16, rng,
+      size: 0.85, sink: 0.6, trailClear: 1.0,
+    });
     slab(B, ctx, 2.6, T.height(2.6, -327.4) + 0.26, -327.4, 1.7, 0.72, 1.1,
       [0.16, 1.1, 0.09], rng);
-    slab(B, ctx, -0.9, T.height(-0.9, -350.2) + 0.20, -350.2, 1.9, 0.58, 1.2,
+    slab(B, ctx, -3.6, T.height(-3.6, -350.2) + 0.20, -350.2, 1.9, 0.58, 1.2,
       [0.10, 0.35, 0.22], rng);
 
     /* ---- outliers along the trail ----------------------------------------

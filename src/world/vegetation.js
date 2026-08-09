@@ -32,6 +32,11 @@ import * as THREE from 'three';
 import { bakeImage, bakeSurface } from '../gfx/bake.js';
 import { LEAF_FRAG, BARK } from './plantTex.js';
 import { makeRng, fern, broadleaf, palm, sprig, tussock, vine, tree, canopyPatch, thicket, sapling, log, deadVine, litterMat, rootRun } from './plants.js';
+import {
+  ROUTE_SAFETY_VERSION,
+  WALKABLE_TRAIL_CLEARANCE,
+  clearsWalkableTrail,
+} from './trail-safety.js';
 import { BOUNDS } from './terrain.js';
 import { standingWater } from './spillway.js';
 
@@ -614,6 +619,8 @@ export class Vegetation {
     this.collision = collision;
     this.root = new THREE.Group();
     this.root.name = 'vegetation';
+    this.root.userData.routeSafety = ROUTE_SAFETY_VERSION;
+    this.root.userData.walkableTrailClearance = WALKABLE_TRAIL_CLEARANCE;
     this.time = 0;
     this.cells = [];
     this.densityScale = Math.max(0.35, Math.min(1, densityScale));
@@ -973,7 +980,16 @@ export class Vegetation {
          * which is what makes the dense knots saturate. */
         const p = accept(ctx) * (0.08 + 10.9 * clump * clump);
         if (p <= 0 || rng() > p) continue;
-        out.push(place(ctx));
+        const placement = place(ctx);
+        const solid = this.species[name]?.[placement.v]?.hi?.solid;
+        /* A visual centre outside the tread is not enough for long or leaning
+         * solids: a fallen trunk can start four metres into the verge and bow
+         * all the way across the path. Test the actual transformed collision
+         * proxy before accepting the placement. This preserves visible
+         * deadfall and buttressed trees beside the trail while guaranteeing a
+         * continuous walking lane through every chapter. */
+        if (solid && !clearsWalkableTrail(this.trail, solid, placement.m)) continue;
+        out.push(placement);
       }
     }
     return out;

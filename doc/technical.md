@@ -5,7 +5,7 @@
 - JavaScript ES modules、Three.js `0.170.0`、WebGL 2、GLSL、Web Audio 与 Vite `5.4.x`。
 - Vite `base: './'` 生成可部署到任意子路径的 `dist/`；运行时不依赖传统图片、模型、录音或关卡包。
 - DOM/CSS 提供实时场景入口、四章导航、HUD、触控、暂停、结算、错误和测绘挑战；全部功能图标使用统一描边 SVG。
-- Node 内置测试验证证据状态机与存档合并；Playwright 验证 390×844、320×568、platform-layout 和 external-guest。
+- Node 内置测试验证证据状态机、存档合并与硬质植被路线间距；Playwright 验证四章真实碰撞注册、390×844、320×568、platform-layout 和 external-guest。
 - 进度先同步写入 `localStorage`，AlterU 内再通过 canonical `aigram-bridge.js` 静默写入永久 game UUID `8962baf6-4b6a-4ddc-892c-19252c297200` 对应的云存档。
 
 ## 2. 目录结构
@@ -19,6 +19,7 @@
 - `src/world/path.js`：共享路径算法与四套控制点；所有路线保持相同世界尺度和终点水系。
 - `src/world/chapter-landmarks.js`：半沉门庭、双塔观测台、水源装置、合金构件、受控倒影与测绘标记。
 - `src/world/ruins.js`：上游遗迹系统、第一章大型水门、三处语义锚点与古代合金信号。
+- `src/world/trail-safety.js`：倒木、树干和板根相对路线中心线的碰撞间距合同。
 - `src/world/` 其余文件：地形、植被、溪流、瀑布和程序纹理。
 - `src/render/`：天空、林冠光场、体积光、AO、调色、景深、泛光和运动积分。
 - `src/player/`：第一人称移动、碰撞、步态、跳跃和程序化身体。
@@ -26,7 +27,8 @@
 - `src/ui.css`、`src/i18n.js`：视觉 token、响应式布局及中英双语。
 - `public/aigram-bridge.js`：与共享 canonical vanilla bridge 字节一致的平台桥。
 - `public/THIRD_PARTY_NOTICES.txt`：上游 Jungle Trail 和 Three.js 的分发许可。
-- `test/`：证据稳定、宽限、章节恢复和跨设备进度合并测试。
+- `test/`：证据稳定、宽限、章节恢复、跨设备进度合并和路线间距测试。
+- `tools/route-safety.mjs`：加载四个完整生成世界，扫描道路中心线的硬质植被和不可行走坡度。
 - `tools/ui-qa.mjs`、`tools/shoot.mjs`、`_qa/ui/`、`shots/qa*`：真实运行状态与匹配机位证据。
 
 ## 3. 核心模块
@@ -55,6 +57,12 @@
 
 `visibilitychange` 和画布可见度低于 15% 会暂停更新与音频。入口冻结、切页和卸载会取消 RAF；章节 URL 切换负责释放 renderer、后处理、身体、音频与程序地标资源。
 
+### 路线与碰撞安全
+
+植被生成器在接受硬质实例前读取该变体的真实 `solid` 代理，把倒木胶囊、树干圆柱和板根胶囊变换到世界坐标，并沿代理每 0.35 米采样到 `Trail` 的最短距离。实体表面必须离路线中心至少 `0.9 m`；再扣除玩家半径 `0.32 m` 与碰撞 skin `0.018 m`，玩家沿中心线仍保留约 `0.56 m` 净间距。被拒绝的实例不会进入渲染批次或碰撞注册，因此不会产生“模型埋在植被里但碰撞仍封路”的无形墙。
+
+遗迹石块继续保持可见且可绕行的设计性障碍，不使用隐藏碰撞清路。清理区从 `t=0.78` 开始展开，第三、四章在遗迹门前提前收束到门洞轴线；门后松散石块按真实尺寸保留 `1.0 m` 路线表面间距。`tools/route-safety.mjs` 分别以移动低密度和桌面高密度加载四章，每章采样 1001 个中心位置检查非石材净空与陡坡，再用 28 cm 横向步长在真实泥路宽度内做分层连通搜索；四章必须从起点连通至 `t=0.955`。
+
 ### 输入、音频与响应式
 
 移动端左摇杆半径 52 px，右侧拖动观察，跳跃和冲刺使用 Pointer Events；桌面保留 Pointer Lock、WASD、Shift、Space。路径辅助只修正明确前进且距中心 7.5 米内的移动方向，不旋转相机。离路 2.4 米持续 1.2 秒显示恢复方向，回到 1.5 米内隐藏。
@@ -68,7 +76,7 @@
 - 调整大型地标、合金比例、塔距或倒影：`src/world/chapter-landmarks.js`；第一章原生遗迹改 `src/world/ruins.js`。
 - 改四章路线：`src/world/path.js` 的 `CONTROL_VARIANTS`；保持终点与 `spillway.js` 水系合同一致。
 - 改入口、章节导航、HUD、结算或测绘流程：`index.html`、`src/main.js`、`src/ui.css` 和 `src/i18n.js`。
-- 改移动、跳跃、相机、碰撞或路径辅助：`src/player/`。
+- 改移动、跳跃、相机或路径辅助：`src/player/`；改硬质植被路线安全间距：`src/world/trail-safety.js`。
 - 改性能：`src/app.js` 的 tier、`src/render/grade.js` 的采样、`src/world/vegetation.js` 的密度/图集和 `src/world/water.js` 的水体档位。
 - 改存档 schema：`src/game/progress-store.js`，提高 `SAVE_VERSION` 并保持旧数据 normalize；平台合同继续使用 canonical bridge。
 - 加排行榜或社交功能：另行按 `game-persistence` 规范接入；当前设计明确只保存个人进度。
