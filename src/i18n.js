@@ -274,7 +274,7 @@ const copy = {
 export const I18N_COPY = copy;
 
 function detectLocale() {
-  const override = localStorage.getItem('game_locale');
+  const override = alteruLocalStorage.getItem('game_locale');
   if (override === 'en' || override === 'zh') return override;
   return navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }
